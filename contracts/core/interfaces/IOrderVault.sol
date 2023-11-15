@@ -61,5 +61,7 @@ interface IOrderVault {
     function getDecreasePositionOrder(uint256 _posId) external view returns (DecreasePositionOrder memory);
 
     function getTriggerOrderInfo(uint256 _posId) external view returns (PositionTrigger memory);
+    function triggerForOpenOrders(uint256 _posId) external;
+    function triggerForTPSL(uint256 _posId) external;
 
 }

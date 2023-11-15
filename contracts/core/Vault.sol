@@ -9,6 +9,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../tokens/interfaces/IMintable.sol";
 import "../tokens/interfaces/IVUSD.sol";
+import "../tokens/interfaces/IBLP.sol";
 import "./interfaces/IPositionVault.sol";
 import "./interfaces/ILiquidateVault.sol";
 import "./interfaces/IOrderVault.sol";
@@ -29,7 +30,7 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
     IOperators public operators;
     IPriceManager private priceManager;
     ISettingsManager private settingsManager;
-    address private vlp;
+    address private blp;
     address private vusd;
     bool private isInitialized;
 
@@ -43,7 +44,7 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
     event Deposit(address indexed account, address indexed token, uint256 amount);
     event Withdraw(address indexed account, address indexed token, uint256 amount);
     event Stake(address indexed account, address token, uint256 amount, uint256 mintAmount);
-    event Unstake(address indexed account, address token, uint256 vlpAmount, uint256 amountOut);
+    event Unstake(address indexed account, address token, uint256 blpAmount, uint256 amountOut);
     event ForceClose(uint256 indexed posId, address indexed account, uint256 exceededPnl);
     event ReferFeeTransfer(address indexed account, uint256 amount);
     event ReferFeeTraderRebate(address indexed account, uint256 amount, address indexed trader, uint256 rebate);
@@ -83,12 +84,12 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
 
     /* ========== INITIALIZE FUNCTIONS ========== */
 
-    function initialize(address _operators, address _vlp, address _vusd) public initializer {
+    function initialize(address _operators, address _blp, address _vusd) public initializer {
         require(AddressUpgradeable.isContract(_operators), "operators invalid");
 
         __ReentrancyGuard_init();
         operators = IOperators(_operators);
-        vlp = _vlp;
+        blp = _blp;
         vusd = _vusd;
     }
 
@@ -113,6 +114,11 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         liquidateVault = _liquidateVault;
         isInitialized = true;
     }
+
+    function setBlpSettings() external onlyOperator(4) {
+        IBLP(blp).initialize(address(this),address(settingsManager));
+    }
+
 
     function setUSDC(IERC20Upgradeable _token) external onlyOperator(3) {
         USDC = _token;
@@ -175,7 +181,7 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         withdraw(address(USDC), IVUSD(vusd).balanceOf(msg.sender));
     }
 
-    // stake stablecoin to mint vlp
+    // stake stablecoin to mint blp
     function stake(address _account, address _token, uint256 _amount) public nonReentrant preventBanners(msg.sender) {
         require(settingsManager.isStakingEnabled(_token), "staking disabled");
         require(_amount > 0, "zero amount");
@@ -188,22 +194,22 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         uint256 usdAmountAfterFee = usdAmount - stakingFee;
 
         uint256 mintAmount;
-        uint256 totalVLP = IERC20Upgradeable(vlp).totalSupply();
-        if (totalVLP == 0) {
+        uint256 totalBLP = IERC20Upgradeable(blp).totalSupply();
+        if (totalBLP == 0) {
             mintAmount =
-                (usdAmountAfterFee * DEFAULT_VLP_PRICE * (10 ** VLP_DECIMALS)) /
+                (usdAmountAfterFee * DEFAULT_BLP_PRICE * (10 ** BLP_DECIMALS)) /
                 (PRICE_PRECISION * BASIS_POINTS_DIVISOR);
         } else {
-            mintAmount = (usdAmountAfterFee * totalVLP) / totalUSD;
+            mintAmount = (usdAmountAfterFee * totalBLP) / totalUSD;
         }
 
-        require(totalVLP + mintAmount <= settingsManager.maxTotalVlp(), "max total vlp exceeded");
+        require(totalBLP + mintAmount <= settingsManager.maxTotalBlp(), "max total blp exceeded");
 
         _distributeFee(stakingFee, address(0), address(0));
 
         totalUSD += usdAmountAfterFee;
         lastStakedAt[_account] = block.timestamp;
-        IMintable(vlp).mint(_account, mintAmount);
+        IMintable(blp).mint(_account, mintAmount);
 
         emit Stake(_account, _token, _amount, mintAmount);
     }
@@ -220,12 +226,12 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         stake(msg.sender, address(USDC), USDC.balanceOf(msg.sender));
     }
 
-    // burn vlp to unstake stablecoin
-    // vlp cannot be unstaked or transferred within cooldown period, except whitelisted contracts
-    function unstake(address _tokenOut, uint256 _vlpAmount) public nonReentrant preventBanners(msg.sender) {
+    // burn blp to unstake stablecoin
+    // blp cannot be unstaked or transferred within cooldown period, except whitelisted contracts
+    function unstake(address _tokenOut, uint256 _blpAmount) public nonReentrant preventBanners(msg.sender) {
         require(settingsManager.isUnstakingEnabled(_tokenOut), "unstaking disabled");
-        uint256 totalVLP = IERC20Upgradeable(vlp).totalSupply();
-        require(_vlpAmount > 0 && _vlpAmount <= totalVLP, "vlpAmount error");
+        uint256 totalBLP = IERC20Upgradeable(blp).totalSupply();
+        require(_blpAmount > 0 && _blpAmount <= totalBLP, "blpAmount error");
         if (settingsManager.isWhitelistedFromCooldown(msg.sender) == false) {
             require(
                 lastStakedAt[msg.sender] + settingsManager.cooldownDuration() <= block.timestamp,
@@ -233,9 +239,9 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
             );
         }
 
-        IMintable(vlp).burn(msg.sender, _vlpAmount);
+        IMintable(blp).burn(msg.sender, _blpAmount);
 
-        uint256 usdAmount = (_vlpAmount * totalUSD) / totalVLP;
+        uint256 usdAmount = (_blpAmount * totalUSD) / totalBLP;
         uint256 unstakingFee = (usdAmount * settingsManager.unstakingFee(_tokenOut)) / BASIS_POINTS_DIVISOR;
 
         _distributeFee(unstakingFee, address(0), address(0));
@@ -244,15 +250,15 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         uint256 tokenAmountOut = priceManager.usdToToken(_tokenOut, usdAmount - unstakingFee);
         IERC20Upgradeable(_tokenOut).safeTransfer(msg.sender, tokenAmountOut);
 
-        emit Unstake(msg.sender, _tokenOut, _vlpAmount, tokenAmountOut);
+        emit Unstake(msg.sender, _tokenOut, _blpAmount, tokenAmountOut);
     }
 
-    function unstakeUSDC(uint256 _vlpAmount) external {
-        unstake(address(USDC), _vlpAmount);
+    function unstakeUSDC(uint256 _blpAmount) external {
+        unstake(address(USDC), _blpAmount);
     }
 
     function unstakeAllUSDC() external {
-        unstake(address(USDC), IERC20Upgradeable(vlp).balanceOf(msg.sender));
+        unstake(address(USDC), IERC20Upgradeable(blp).balanceOf(msg.sender));
     }
 
     // submit order to create a new position
@@ -463,7 +469,7 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
             if (_isIncrease) {
                 totalUSD += _delta;
             } else {
-                require(totalUSD >= _delta, "exceeded VLP bottom");
+                require(totalUSD >= _delta, "exceeded BLP bottom");
                 totalUSD -= _delta;
             }
         }
@@ -501,9 +507,9 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
                 }
             }
 
-            uint256 feeForVLP = (_fee * settingsManager.feeRewardBasisPoints()) / BASIS_POINTS_DIVISOR;
-            totalUSD += feeForVLP;
-            IVUSD(vusd).mint(settingsManager.feeManager(), _fee - feeForVLP);
+            uint256 feeForBLP = (_fee * settingsManager.feeRewardBasisPoints()) / BASIS_POINTS_DIVISOR;
+            totalUSD += feeForBLP;
+            IVUSD(vusd).mint(settingsManager.feeManager(), _fee - feeForBLP);
         }
     }
 
@@ -545,12 +551,12 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function getVLPPrice() external view returns (uint256) {
-        uint256 totalVLP = IERC20Upgradeable(vlp).totalSupply();
-        if (totalVLP == 0) {
-            return DEFAULT_VLP_PRICE;
+    function getBLPPrice() external view returns (uint256) {
+        uint256 totalBLP = IERC20Upgradeable(blp).totalSupply();
+        if (totalBLP == 0) {
+            return DEFAULT_BLP_PRICE;
         } else {
-            return (BASIS_POINTS_DIVISOR * (10 ** VLP_DECIMALS) * totalUSD) / (totalVLP * PRICE_PRECISION);
+            return (BASIS_POINTS_DIVISOR * (10 ** BLP_DECIMALS) * totalUSD) / (totalBLP * PRICE_PRECISION);
         }
     }
 

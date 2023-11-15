@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 interface IVault {
     function accountDeltaIntoTotalUSD(bool _isIncrease, uint256 _delta) external;
 
-    function distributeFee(uint256 _fee, address _refer) external;
+    function distributeFee(uint256 _fee, address _refer, address _trader) external;
 
     function takeVUSDIn(address _account, uint256 _amount) external;
 
@@ -14,4 +14,6 @@ interface IVault {
     function lastStakedAt(address _account) external view returns (uint256);
 
     function getVaultUSDBalance() external view returns (uint256);
+
+    function getBLPPrice() external view returns (uint256);
 }

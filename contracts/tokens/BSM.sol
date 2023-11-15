@@ -1,6 +1,4 @@
-/**
- *Submitted for verification at Arbiscan.io on 2022-12-24
-*/
+// SPDX-License-Identifier: MIT
 
 // File: @openzeppelin/contracts/utils/introspection/IERC165.sol
 
@@ -122,81 +120,81 @@ library Math {
         uint256 y,
         uint256 denominator
     ) internal pure returns (uint256 result) {
-        unchecked {
-            // 512-bit multiply [prod1 prod0] = x * y. Compute the product mod 2^256 and mod 2^256 - 1, then use
-            // use the Chinese Remainder Theorem to reconstruct the 512 bit result. The result is stored in two 256
-            // variables such that product = prod1 * 2^256 + prod0.
-            uint256 prod0; // Least significant 256 bits of the product
-            uint256 prod1; // Most significant 256 bits of the product
-            assembly {
-                let mm := mulmod(x, y, not(0))
-                prod0 := mul(x, y)
-                prod1 := sub(sub(mm, prod0), lt(mm, prod0))
-            }
-
-            // Handle non-overflow cases, 256 by 256 division.
-            if (prod1 == 0) {
-                return prod0 / denominator;
-            }
-
-            // Make sure the result is less than 2^256. Also prevents denominator == 0.
-            require(denominator > prod1);
-
-            ///////////////////////////////////////////////
-            // 512 by 256 division.
-            ///////////////////////////////////////////////
-
-            // Make division exact by subtracting the remainder from [prod1 prod0].
-            uint256 remainder;
-            assembly {
-                // Compute remainder using mulmod.
-                remainder := mulmod(x, y, denominator)
-
-                // Subtract 256 bit number from 512 bit number.
-                prod1 := sub(prod1, gt(remainder, prod0))
-                prod0 := sub(prod0, remainder)
-            }
-
-            // Factor powers of two out of denominator and compute largest power of two divisor of denominator. Always >= 1.
-            // See https://cs.stackexchange.com/q/138556/92363.
-
-            // Does not overflow because the denominator cannot be zero at this stage in the function.
-            uint256 twos = denominator & (~denominator + 1);
-            assembly {
-                // Divide denominator by twos.
-                denominator := div(denominator, twos)
-
-                // Divide [prod1 prod0] by twos.
-                prod0 := div(prod0, twos)
-
-                // Flip twos such that it is 2^256 / twos. If twos is zero, then it becomes one.
-                twos := add(div(sub(0, twos), twos), 1)
-            }
-
-            // Shift in bits from prod1 into prod0.
-            prod0 |= prod1 * twos;
-
-            // Invert denominator mod 2^256. Now that denominator is an odd number, it has an inverse modulo 2^256 such
-            // that denominator * inv = 1 mod 2^256. Compute the inverse by starting with a seed that is correct for
-            // four bits. That is, denominator * inv = 1 mod 2^4.
-            uint256 inverse = (3 * denominator) ^ 2;
-
-            // Use the Newton-Raphson iteration to improve the precision. Thanks to Hensel's lifting lemma, this also works
-            // in modular arithmetic, doubling the correct bits in each step.
-            inverse *= 2 - denominator * inverse; // inverse mod 2^8
-            inverse *= 2 - denominator * inverse; // inverse mod 2^16
-            inverse *= 2 - denominator * inverse; // inverse mod 2^32
-            inverse *= 2 - denominator * inverse; // inverse mod 2^64
-            inverse *= 2 - denominator * inverse; // inverse mod 2^128
-            inverse *= 2 - denominator * inverse; // inverse mod 2^256
-
-            // Because the division is now exact we can divide by multiplying with the modular inverse of denominator.
-            // This will give us the correct result modulo 2^256. Since the preconditions guarantee that the outcome is
-            // less than 2^256, this is the final result. We don't need to compute the high bits of the result and prod1
-            // is no longer required.
-            result = prod0 * inverse;
-            return result;
+    unchecked {
+        // 512-bit multiply [prod1 prod0] = x * y. Compute the product mod 2^256 and mod 2^256 - 1, then use
+        // use the Chinese Remainder Theorem to reconstruct the 512 bit result. The result is stored in two 256
+        // variables such that product = prod1 * 2^256 + prod0.
+        uint256 prod0; // Least significant 256 bits of the product
+        uint256 prod1; // Most significant 256 bits of the product
+        assembly {
+            let mm := mulmod(x, y, not(0))
+            prod0 := mul(x, y)
+            prod1 := sub(sub(mm, prod0), lt(mm, prod0))
         }
+
+        // Handle non-overflow cases, 256 by 256 division.
+        if (prod1 == 0) {
+            return prod0 / denominator;
+        }
+
+        // Make sure the result is less than 2^256. Also prevents denominator == 0.
+        require(denominator > prod1);
+
+        ///////////////////////////////////////////////
+        // 512 by 256 division.
+        ///////////////////////////////////////////////
+
+        // Make division exact by subtracting the remainder from [prod1 prod0].
+        uint256 remainder;
+        assembly {
+        // Compute remainder using mulmod.
+            remainder := mulmod(x, y, denominator)
+
+        // Subtract 256 bit number from 512 bit number.
+            prod1 := sub(prod1, gt(remainder, prod0))
+            prod0 := sub(prod0, remainder)
+        }
+
+        // Factor powers of two out of denominator and compute largest power of two divisor of denominator. Always >= 1.
+        // See https://cs.stackexchange.com/q/138556/92363.
+
+        // Does not overflow because the denominator cannot be zero at this stage in the function.
+        uint256 twos = denominator & (~denominator + 1);
+        assembly {
+        // Divide denominator by twos.
+            denominator := div(denominator, twos)
+
+        // Divide [prod1 prod0] by twos.
+            prod0 := div(prod0, twos)
+
+        // Flip twos such that it is 2^256 / twos. If twos is zero, then it becomes one.
+            twos := add(div(sub(0, twos), twos), 1)
+        }
+
+        // Shift in bits from prod1 into prod0.
+        prod0 |= prod1 * twos;
+
+        // Invert denominator mod 2^256. Now that denominator is an odd number, it has an inverse modulo 2^256 such
+        // that denominator * inv = 1 mod 2^256. Compute the inverse by starting with a seed that is correct for
+        // four bits. That is, denominator * inv = 1 mod 2^4.
+        uint256 inverse = (3 * denominator) ^ 2;
+
+        // Use the Newton-Raphson iteration to improve the precision. Thanks to Hensel's lifting lemma, this also works
+        // in modular arithmetic, doubling the correct bits in each step.
+        inverse *= 2 - denominator * inverse; // inverse mod 2^8
+        inverse *= 2 - denominator * inverse; // inverse mod 2^16
+        inverse *= 2 - denominator * inverse; // inverse mod 2^32
+        inverse *= 2 - denominator * inverse; // inverse mod 2^64
+        inverse *= 2 - denominator * inverse; // inverse mod 2^128
+        inverse *= 2 - denominator * inverse; // inverse mod 2^256
+
+        // Because the division is now exact we can divide by multiplying with the modular inverse of denominator.
+        // This will give us the correct result modulo 2^256. Since the preconditions guarantee that the outcome is
+        // less than 2^256, this is the final result. We don't need to compute the high bits of the result and prod1
+        // is no longer required.
+        result = prod0 * inverse;
+        return result;
+    }
     }
 
     /**
@@ -241,26 +239,26 @@ library Math {
         // since it is the square root of a uint256. Newton's method converges quadratically (precision doubles at
         // every iteration). We thus need at most 7 iteration to turn our partial result with one bit of precision
         // into the expected uint128 result.
-        unchecked {
-            result = (result + a / result) >> 1;
-            result = (result + a / result) >> 1;
-            result = (result + a / result) >> 1;
-            result = (result + a / result) >> 1;
-            result = (result + a / result) >> 1;
-            result = (result + a / result) >> 1;
-            result = (result + a / result) >> 1;
-            return min(result, a / result);
-        }
+    unchecked {
+        result = (result + a / result) >> 1;
+        result = (result + a / result) >> 1;
+        result = (result + a / result) >> 1;
+        result = (result + a / result) >> 1;
+        result = (result + a / result) >> 1;
+        result = (result + a / result) >> 1;
+        result = (result + a / result) >> 1;
+        return min(result, a / result);
+    }
     }
 
     /**
      * @notice Calculates sqrt(a), following the selected rounding direction.
      */
     function sqrt(uint256 a, Rounding rounding) internal pure returns (uint256) {
-        unchecked {
-            uint256 result = sqrt(a);
-            return result + (rounding == Rounding.Up && result * result < a ? 1 : 0);
-        }
+    unchecked {
+        uint256 result = sqrt(a);
+        return result + (rounding == Rounding.Up && result * result < a ? 1 : 0);
+    }
     }
 
     /**
@@ -269,39 +267,39 @@ library Math {
      */
     function log2(uint256 value) internal pure returns (uint256) {
         uint256 result = 0;
-        unchecked {
-            if (value >> 128 > 0) {
-                value >>= 128;
-                result += 128;
-            }
-            if (value >> 64 > 0) {
-                value >>= 64;
-                result += 64;
-            }
-            if (value >> 32 > 0) {
-                value >>= 32;
-                result += 32;
-            }
-            if (value >> 16 > 0) {
-                value >>= 16;
-                result += 16;
-            }
-            if (value >> 8 > 0) {
-                value >>= 8;
-                result += 8;
-            }
-            if (value >> 4 > 0) {
-                value >>= 4;
-                result += 4;
-            }
-            if (value >> 2 > 0) {
-                value >>= 2;
-                result += 2;
-            }
-            if (value >> 1 > 0) {
-                result += 1;
-            }
+    unchecked {
+        if (value >> 128 > 0) {
+            value >>= 128;
+            result += 128;
         }
+        if (value >> 64 > 0) {
+            value >>= 64;
+            result += 64;
+        }
+        if (value >> 32 > 0) {
+            value >>= 32;
+            result += 32;
+        }
+        if (value >> 16 > 0) {
+            value >>= 16;
+            result += 16;
+        }
+        if (value >> 8 > 0) {
+            value >>= 8;
+            result += 8;
+        }
+        if (value >> 4 > 0) {
+            value >>= 4;
+            result += 4;
+        }
+        if (value >> 2 > 0) {
+            value >>= 2;
+            result += 2;
+        }
+        if (value >> 1 > 0) {
+            result += 1;
+        }
+    }
         return result;
     }
 
@@ -310,10 +308,10 @@ library Math {
      * Returns 0 if given 0.
      */
     function log2(uint256 value, Rounding rounding) internal pure returns (uint256) {
-        unchecked {
-            uint256 result = log2(value);
-            return result + (rounding == Rounding.Up && 1 << result < value ? 1 : 0);
-        }
+    unchecked {
+        uint256 result = log2(value);
+        return result + (rounding == Rounding.Up && 1 << result < value ? 1 : 0);
+    }
     }
 
     /**
@@ -322,35 +320,35 @@ library Math {
      */
     function log10(uint256 value) internal pure returns (uint256) {
         uint256 result = 0;
-        unchecked {
-            if (value >= 10**64) {
-                value /= 10**64;
-                result += 64;
-            }
-            if (value >= 10**32) {
-                value /= 10**32;
-                result += 32;
-            }
-            if (value >= 10**16) {
-                value /= 10**16;
-                result += 16;
-            }
-            if (value >= 10**8) {
-                value /= 10**8;
-                result += 8;
-            }
-            if (value >= 10**4) {
-                value /= 10**4;
-                result += 4;
-            }
-            if (value >= 10**2) {
-                value /= 10**2;
-                result += 2;
-            }
-            if (value >= 10**1) {
-                result += 1;
-            }
+    unchecked {
+        if (value >= 10**64) {
+            value /= 10**64;
+            result += 64;
         }
+        if (value >= 10**32) {
+            value /= 10**32;
+            result += 32;
+        }
+        if (value >= 10**16) {
+            value /= 10**16;
+            result += 16;
+        }
+        if (value >= 10**8) {
+            value /= 10**8;
+            result += 8;
+        }
+        if (value >= 10**4) {
+            value /= 10**4;
+            result += 4;
+        }
+        if (value >= 10**2) {
+            value /= 10**2;
+            result += 2;
+        }
+        if (value >= 10**1) {
+            result += 1;
+        }
+    }
         return result;
     }
 
@@ -359,10 +357,10 @@ library Math {
      * Returns 0 if given 0.
      */
     function log10(uint256 value, Rounding rounding) internal pure returns (uint256) {
-        unchecked {
-            uint256 result = log10(value);
-            return result + (rounding == Rounding.Up && 10**result < value ? 1 : 0);
-        }
+    unchecked {
+        uint256 result = log10(value);
+        return result + (rounding == Rounding.Up && 10**result < value ? 1 : 0);
+    }
     }
 
     /**
@@ -373,27 +371,27 @@ library Math {
      */
     function log256(uint256 value) internal pure returns (uint256) {
         uint256 result = 0;
-        unchecked {
-            if (value >> 128 > 0) {
-                value >>= 128;
-                result += 16;
-            }
-            if (value >> 64 > 0) {
-                value >>= 64;
-                result += 8;
-            }
-            if (value >> 32 > 0) {
-                value >>= 32;
-                result += 4;
-            }
-            if (value >> 16 > 0) {
-                value >>= 16;
-                result += 2;
-            }
-            if (value >> 8 > 0) {
-                result += 1;
-            }
+    unchecked {
+        if (value >> 128 > 0) {
+            value >>= 128;
+            result += 16;
         }
+        if (value >> 64 > 0) {
+            value >>= 64;
+            result += 8;
+        }
+        if (value >> 32 > 0) {
+            value >>= 32;
+            result += 4;
+        }
+        if (value >> 16 > 0) {
+            value >>= 16;
+            result += 2;
+        }
+        if (value >> 8 > 0) {
+            result += 1;
+        }
+    }
         return result;
     }
 
@@ -402,10 +400,10 @@ library Math {
      * Returns 0 if given 0.
      */
     function log256(uint256 value, Rounding rounding) internal pure returns (uint256) {
-        unchecked {
-            uint256 result = log256(value);
-            return result + (rounding == Rounding.Up && 1 << (result * 8) < value ? 1 : 0);
-        }
+    unchecked {
+        uint256 result = log256(value);
+        return result + (rounding == Rounding.Up && 1 << (result * 8) < value ? 1 : 0);
+    }
     }
 }
 
@@ -428,34 +426,34 @@ library Strings {
      * @dev Converts a `uint256` to its ASCII `string` decimal representation.
      */
     function toString(uint256 value) internal pure returns (string memory) {
-        unchecked {
-            uint256 length = Math.log10(value) + 1;
-            string memory buffer = new string(length);
-            uint256 ptr;
+    unchecked {
+        uint256 length = Math.log10(value) + 1;
+        string memory buffer = new string(length);
+        uint256 ptr;
+        /// @solidity memory-safe-assembly
+        assembly {
+            ptr := add(buffer, add(32, length))
+        }
+        while (true) {
+            ptr--;
             /// @solidity memory-safe-assembly
             assembly {
-                ptr := add(buffer, add(32, length))
+                mstore8(ptr, byte(mod(value, 10), _SYMBOLS))
             }
-            while (true) {
-                ptr--;
-                /// @solidity memory-safe-assembly
-                assembly {
-                    mstore8(ptr, byte(mod(value, 10), _SYMBOLS))
-                }
-                value /= 10;
-                if (value == 0) break;
-            }
-            return buffer;
+            value /= 10;
+            if (value == 0) break;
         }
+        return buffer;
+    }
     }
 
     /**
      * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
      */
     function toHexString(uint256 value) internal pure returns (string memory) {
-        unchecked {
-            return toHexString(value, Math.log256(value) + 1);
-        }
+    unchecked {
+        return toHexString(value, Math.log256(value) + 1);
+    }
     }
 
     /**
@@ -709,14 +707,14 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     function _checkRole(bytes32 role, address account) internal view virtual {
         if (!hasRole(role, account)) {
             revert(
-                string(
-                    abi.encodePacked(
-                        "AccessControl: account ",
-                        Strings.toHexString(account),
-                        " is missing role ",
-                        Strings.toHexString(uint256(role), 32)
-                    )
+            string(
+                abi.encodePacked(
+                    "AccessControl: account ",
+                    Strings.toHexString(account),
+                    " is missing role ",
+                    Strings.toHexString(uint256(role), 32)
                 )
+            )
             );
         }
     }
@@ -1275,9 +1273,9 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         address owner = _msgSender();
         uint256 currentAllowance = allowance(owner, spender);
         require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
-        unchecked {
-            _approve(owner, spender, currentAllowance - subtractedValue);
-        }
+    unchecked {
+        _approve(owner, spender, currentAllowance - subtractedValue);
+    }
 
         return true;
     }
@@ -1308,12 +1306,12 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 
         uint256 fromBalance = _balances[from];
         require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
-        unchecked {
-            _balances[from] = fromBalance - amount;
-            // Overflow not possible: the sum of all balances is capped by totalSupply, and the sum is preserved by
-            // decrementing then incrementing.
-            _balances[to] += amount;
-        }
+    unchecked {
+        _balances[from] = fromBalance - amount;
+        // Overflow not possible: the sum of all balances is capped by totalSupply, and the sum is preserved by
+        // decrementing then incrementing.
+        _balances[to] += amount;
+    }
 
         emit Transfer(from, to, amount);
 
@@ -1335,10 +1333,10 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         _beforeTokenTransfer(address(0), account, amount);
 
         _totalSupply += amount;
-        unchecked {
-            // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
-            _balances[account] += amount;
-        }
+    unchecked {
+        // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
+        _balances[account] += amount;
+    }
         emit Transfer(address(0), account, amount);
 
         _afterTokenTransfer(address(0), account, amount);
@@ -1362,11 +1360,11 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 
         uint256 accountBalance = _balances[account];
         require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
-        unchecked {
-            _balances[account] = accountBalance - amount;
-            // Overflow not possible: amount <= accountBalance <= totalSupply.
-            _totalSupply -= amount;
-        }
+    unchecked {
+        _balances[account] = accountBalance - amount;
+        // Overflow not possible: amount <= accountBalance <= totalSupply.
+        _totalSupply -= amount;
+    }
 
         emit Transfer(account, address(0), amount);
 
@@ -1414,9 +1412,9 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         uint256 currentAllowance = allowance(owner, spender);
         if (currentAllowance != type(uint256).max) {
             require(currentAllowance >= amount, "ERC20: insufficient allowance");
-            unchecked {
-                _approve(owner, spender, currentAllowance - amount);
-            }
+        unchecked {
+            _approve(owner, spender, currentAllowance - amount);
+        }
         }
     }
 
@@ -1461,7 +1459,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     ) internal virtual {}
 }
 
-// File: contracts/VelaToken.sol
+// File: contracts/BsmToken.sol
 
 
 pragma solidity ^0.8.9;
@@ -1469,13 +1467,13 @@ pragma solidity ^0.8.9;
 
 
 
-contract VelaToken is ERC20, Pausable, AccessControl {
+contract BsmToken is ERC20, Pausable, AccessControl {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     uint256 private _maxSupply = 100000000 * 10**decimals(); // 100M tokens is maximum supply
 
-    constructor() ERC20("VelaToken", "VELA") {
+    constructor() ERC20("BsmToken", "BSM") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
@@ -1502,9 +1500,9 @@ contract VelaToken is ERC20, Pausable, AccessControl {
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount)
-        internal
-        whenNotPaused
-        override
+    internal
+    whenNotPaused
+    override
     {
         super._beforeTokenTransfer(from, to, amount);
     }

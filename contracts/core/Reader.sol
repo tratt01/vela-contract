@@ -28,10 +28,10 @@ contract Reader is Constants, Initializable {
     ITokenFarm private tokenFarm;
     IVault private vault;
     IERC20 private USDC;
-    IERC20 private vUSD;
-    IERC20 private vlp;
-    IERC20 private vela;
-    IERC20 private esVela;
+    IERC20 private vusd;
+    IERC20 private blp;
+    IERC20 private bsm;
+    IERC20 private esBsm;
 
     function initialize(IPositionVault _positionVault, IOrderVault _orderVault, ISettingsManager _settingsManager) public initializer {
         require(AddressUpgradeable.isContract(address(_positionVault)), "positionVault invalid");
@@ -42,31 +42,31 @@ contract Reader is Constants, Initializable {
     }
 
     function initializeV2(ITokenFarm _tokenFarm) reinitializer(2) public {
-        tokenFarm = _tokenFarm; // first caller 2%, resolver 8% and leftover 90% to vlp
+        tokenFarm = _tokenFarm; // first caller 2%, resolver 8% and leftover 90% to blp
         require(AddressUpgradeable.isContract(address(_tokenFarm)), "tokenFarm invalid");
     }
 
-    function initializeV3(IVault _vault, IERC20 _USDC, IERC20 _vUSD, IERC20 _vlp, IERC20 _vela, IERC20 _esVela) reinitializer(3) public {
-        require(AddressUpgradeable.isContract(address(_esVela)), "esVela invalid");
+    function initializeV3(IVault _vault, IERC20 _USDC, IERC20 _vusd, IERC20 _blp, IERC20 _bsm, IERC20 _esBsm) reinitializer(3) public {
+        require(AddressUpgradeable.isContract(address(_esBsm)), "esBsm invalid");
         require(AddressUpgradeable.isContract(address(_vault)), "Vault invalid");
-        require(AddressUpgradeable.isContract(address(_vela)), "vela invalid");
-        require(AddressUpgradeable.isContract(address(_vlp)), "vlp invalid");
+        require(AddressUpgradeable.isContract(address(_bsm)), "bsm invalid");
+        require(AddressUpgradeable.isContract(address(_blp)), "blp invalid");
         require(AddressUpgradeable.isContract(address(_USDC)), "USDC invalid");
-        require(AddressUpgradeable.isContract(address(_vUSD)), "vUSD invalid");
-        esVela = _esVela;
+        require(AddressUpgradeable.isContract(address(_vusd)), "vusd invalid");
+        esBsm = _esBsm;
         vault = _vault;
-        vela = _vela;
-        vlp = _vlp;
+        bsm = _bsm;
+        blp = _blp;
         USDC = _USDC;
-        vUSD = _vUSD;
+        vusd = _vusd;
     }
 
     function getUserAlivePositions(
         address _user
     )
-        public
-        view
-        returns (uint256[] memory, Position[] memory, Order[] memory, PositionTrigger[] memory, PaidFees[] memory, AccruedFees[] memory)
+    public
+    view
+    returns (uint256[] memory, Position[] memory, Order[] memory, PositionTrigger[] memory, PaidFees[] memory, AccruedFees[] memory)
     {
         uint256[] memory posIds = positionVault.getUserPositionIds(_user);
         uint256 length = posIds.length;
@@ -99,19 +99,19 @@ contract Reader is Constants, Initializable {
         address _account,
         uint256 _tokenId
     )
-        external
-        view
-        returns (
-            int256 fundingRate,
-            uint256 borrowRateForLong,
-            uint256 borrowRateForShort,
-            uint256 longOpenInterest,
-            uint256 shortOpenInterest,
-            uint256 maxLongOpenInterest,
-            uint256 maxShortOpenInterest,
-            uint256 longTradingFee,
-            uint256 shortTradingFee
-        )
+    external
+    view
+    returns (
+        int256 fundingRate,
+        uint256 borrowRateForLong,
+        uint256 borrowRateForShort,
+        uint256 longOpenInterest,
+        uint256 shortOpenInterest,
+        uint256 maxLongOpenInterest,
+        uint256 maxShortOpenInterest,
+        uint256 longTradingFee,
+        uint256 shortTradingFee
+    )
     {
         fundingRate = settingsManager.getFundingRate(_tokenId);
         borrowRateForLong = settingsManager.getBorrowRate(_tokenId, true);
@@ -127,9 +127,9 @@ contract Reader is Constants, Initializable {
     function getUserOpenOrders(
         address _user
     )
-        public
-        view
-        returns (uint256[] memory, Position[] memory, Order[] memory, PositionTrigger[] memory, PaidFees[] memory, AccruedFees[] memory)
+    public
+    view
+    returns (uint256[] memory, Position[] memory, Order[] memory, PositionTrigger[] memory, PaidFees[] memory, AccruedFees[] memory)
     {
         uint256[] memory posIds = positionVault.getUserOpenOrderIds(_user);
         uint256 length = posIds.length;
@@ -150,11 +150,11 @@ contract Reader is Constants, Initializable {
     }
 
     function getFeesFor1CT(address _normal, address _oneCT) external view returns (bool, uint256) {
-        uint256 tierVelaPercent = tokenFarm.getTierVela(_normal);
+        uint256 tierBsmPercent = tokenFarm.getTierBsm(_normal);
         uint256 deductFeePercentForNormal = settingsManager.deductFeePercent(_normal);
         uint256 deductFeePercentForOneCT = settingsManager.deductFeePercent(_oneCT);
-        if (tierVelaPercent * (BASIS_POINTS_DIVISOR - deductFeePercentForNormal) / BASIS_POINTS_DIVISOR != (BASIS_POINTS_DIVISOR - deductFeePercentForOneCT)) {
-            return (true, BASIS_POINTS_DIVISOR - tierVelaPercent * (BASIS_POINTS_DIVISOR - deductFeePercentForNormal) / BASIS_POINTS_DIVISOR);
+        if (tierBsmPercent * (BASIS_POINTS_DIVISOR - deductFeePercentForNormal) / BASIS_POINTS_DIVISOR != (BASIS_POINTS_DIVISOR - deductFeePercentForOneCT)) {
+            return (true, BASIS_POINTS_DIVISOR - tierBsmPercent * (BASIS_POINTS_DIVISOR - deductFeePercentForNormal) / BASIS_POINTS_DIVISOR);
         } else {
             return (false, 0);
         }
@@ -179,39 +179,39 @@ contract Reader is Constants, Initializable {
         ethBalance = _account.balance;
         usdcBalance = USDC.balanceOf(_account);
         usdcAllowance = USDC.allowance(_account, address(vault));
-        vusdBalance = vUSD.balanceOf(_account);
+        vusdBalance = vusd.balanceOf(_account);
     }
 
-    function getUserVelaAndEsVelaInfo(address _account) external view returns (uint256[] memory, uint256[] memory, uint256[] memory, uint256[] memory, uint256[] memory) {
+    function getUserBsmAndEsBsmInfo(address _account) external view returns (uint256[] memory, uint256[] memory, uint256[] memory, uint256[] memory, uint256[] memory) {
         uint256[] memory balances = new uint256[](2);
         uint256[] memory allowances = new uint256[](2);
         uint256[] memory stakedAmounts = new uint256[](2);
-        balances[0] = vela.balanceOf(_account);
-        balances[1] = esVela.balanceOf(_account);
-        allowances[0] = vela.allowance(_account, address(tokenFarm));
-        allowances[1] = esVela.allowance(_account, address(tokenFarm));
-        (uint256 velaStakedAmount, uint256 esVelaStakedAmount) = tokenFarm.getStakedVela(_account);
-        stakedAmounts[0] = velaStakedAmount;
-        stakedAmounts[1] = esVelaStakedAmount;
+        balances[0] = bsm.balanceOf(_account);
+        balances[1] = esBsm.balanceOf(_account);
+        allowances[0] = bsm.allowance(_account, address(tokenFarm));
+        allowances[1] = esBsm.allowance(_account, address(tokenFarm));
+        (uint256 bsmStakedAmount, uint256 esBsmStakedAmount) = tokenFarm.getStakedBsm(_account);
+        stakedAmounts[0] = bsmStakedAmount;
+        stakedAmounts[1] = esBsmStakedAmount;
         (, , uint256[] memory decimals, uint256[] memory pendingTokens) = tokenFarm.pendingTokens(true, _account);
         return (balances, allowances, decimals, pendingTokens, stakedAmounts);
     }
 
-    function getUserVLPInfo(address _account) external view returns (uint256[] memory, uint256[] memory, uint256[] memory) {
-        uint256 balance = vlp.balanceOf(_account);
-        uint256 allowance = vlp.allowance(_account, address(tokenFarm));
-        uint256 vlpPrice = vault.getVLPPrice();
-        (uint256 vlpStakedAmount, uint256 startTimestamp) = tokenFarm.getStakedVLP(_account);
+    function getUserBLPInfo(address _account) external view returns (uint256[] memory, uint256[] memory, uint256[] memory) {
+        uint256 balance = blp.balanceOf(_account);
+        uint256 allowance = blp.allowance(_account, address(tokenFarm));
+        uint256 blpPrice = vault.getBLPPrice();
+        (uint256 blpStakedAmount, uint256 startTimestamp) = tokenFarm.getStakedBLP(_account);
         uint256 cooldownDuration = tokenFarm.cooldownDuration();
-        uint256[] memory vlpInfo = new uint256[](6);
-        vlpInfo[0] = balance;
-        vlpInfo[1] = allowance;
-        vlpInfo[2] = vlpStakedAmount;
-        vlpInfo[3] = vlpPrice;
-        vlpInfo[4] = startTimestamp;
-        vlpInfo[5] = cooldownDuration;
+        uint256[] memory blpInfo = new uint256[](6);
+        blpInfo[0] = balance;
+        blpInfo[1] = allowance;
+        blpInfo[2] = blpStakedAmount;
+        blpInfo[3] = blpPrice;
+        blpInfo[4] = startTimestamp;
+        blpInfo[5] = cooldownDuration;
         (, , uint256[] memory decimals, uint256[] memory pendingTokens) = tokenFarm.pendingTokens(false, _account);
-        return (vlpInfo, decimals, pendingTokens);
+        return (blpInfo, decimals, pendingTokens);
     }
 
     function getUserVestingInfo(address _account) external view returns (uint256, uint256) {

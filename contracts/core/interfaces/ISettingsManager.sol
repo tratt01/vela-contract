@@ -45,8 +45,6 @@ interface ISettingsManager {
 
     function basisFundingRateFactor() external view returns (uint256);
 
-    function liquidationFee() external view returns (uint256);
-
     function deductFeePercent(address _account) external view returns (uint256);
 
     function referrerTiers(address _referrer) external view returns (uint256);
@@ -67,6 +65,8 @@ interface ISettingsManager {
     ) external view returns (int256);
 
     function getFundingChange(uint256 _tokenId) external view returns (int256);
+
+    function getBorrowRate(uint256 _tokenId, bool _isLong) external view returns (uint256);
 
     function getFundingRate(uint256 _tokenId) external view returns (int256);
 
@@ -93,7 +93,8 @@ interface ISettingsManager {
     function getBorrowFee(
         uint256 _borrowedSize,
         uint256 _lastIncreasedTime,
-        uint256 _tokenId
+        uint256 _tokenId,
+        bool _isLong
     ) external view returns (uint256);
 
     function getUndiscountedTradingFee(
@@ -103,6 +104,10 @@ interface ISettingsManager {
     ) external view returns (uint256);
 
     function getReferFee(address _refer) external view returns (uint256);
+
+    function getReferFeeAndTraderRebate(address _refer) external view returns (uint256 referFee, uint256 traderRebate);
+
+    function platformFees(address _platform) external view returns (uint256);
 
     function getPriceWithSlippage(
         uint256 _tokenId,
@@ -135,9 +140,17 @@ interface ISettingsManager {
 
     function tradingFee(uint256 _tokenId, bool _isLong) external view returns (uint256);
 
-    function maxProfitPercent() external view returns (uint256);
+    function defaultMaxOpenInterestPerUser() external view returns (uint256);
+
+    function maxProfitPercent(uint256 _tokenId) external view returns (uint256);
+
+    function defaultMaxProfitPercent() external view returns (uint256);
+
+    function maxOpenInterestPerAssetPerSide(uint256 _tokenId, bool _isLong) external view returns (uint256);
 
     function priceMovementPercent() external view returns (uint256);
+
+    function maxOpenInterestPerUser(address _account) external view returns (uint256);
 
     function stakingFee(address token) external view returns (uint256);
 
@@ -150,4 +163,12 @@ interface ISettingsManager {
     function maxTriggerPerPosition() external view returns (uint256);
 
     function maxFundingRate() external view returns (uint256);
+
+    function maxTotalBlp() external view returns (uint256);
+
+    function minProfitDurations(uint256 tokenId) external view returns (uint256);
+
+    function maxCloseProfits(uint256 tokenId) external view returns (uint256);
+
+    function maxCloseProfitPercents(uint256 tokenId) external view returns (uint256);
 }

@@ -83,14 +83,14 @@ contract PriceManager is Constants, Initializable, IPriceManager {
         }
 
         assets[_assetId] = Asset({
-            symbol: _symbol,
-            pythId: _pythId,
-            price: _price,
-            timestamp: block.timestamp,
-            allowedStaleness: _allowedStaleness,
-            allowedDeviation: _allowedDeviation,
-            maxLeverage: _maxLeverage,
-            tokenDecimals: 0
+        symbol: _symbol,
+        pythId: _pythId,
+        price: _price,
+        timestamp: block.timestamp,
+        allowedStaleness: _allowedStaleness,
+        allowedDeviation: _allowedDeviation,
+        maxLeverage: _maxLeverage,
+        tokenDecimals: 0
         });
 
         emit SetAsset(
@@ -103,66 +103,6 @@ contract PriceManager is Constants, Initializable, IPriceManager {
             _allowedDeviation,
             _maxLeverage
         );
-    }
-
-    function batchSetAllowedDeviation(uint256[] memory _assetIds, uint256 _allowedDeviation) external onlyOperator(3) {
-        for(uint256 i; i<_assetIds.length; i++){
-            uint256 _assetId = _assetIds[i];
-            Asset memory asset = assets[_assetId];
-            require(asset.maxLeverage > 0, "!newAsset");
-            asset.allowedDeviation = _allowedDeviation;
-            assets[_assetId] = asset;
-            emit SetAsset(
-                _assetId,
-                asset.symbol,
-                asset.pythId,
-                asset.price,
-                asset.timestamp,
-                asset.allowedStaleness,
-                asset.allowedDeviation,
-                asset.maxLeverage
-            );
-        }
-    }
-
-    function batchSetAllowedStaleness(uint256[] memory _assetIds, uint256 _allowedStaleness) external onlyOperator(3) {
-        for(uint256 i; i<_assetIds.length; i++){
-            uint256 _assetId = _assetIds[i];
-            Asset memory asset = assets[_assetId];
-            require(asset.maxLeverage > 0, "!newAsset");
-            asset.allowedStaleness = _allowedStaleness;
-            assets[_assetId] = asset;
-            emit SetAsset(
-                _assetId,
-                asset.symbol,
-                asset.pythId,
-                asset.price,
-                asset.timestamp,
-                asset.allowedStaleness,
-                asset.allowedDeviation,
-                asset.maxLeverage
-            );
-        }
-    }
-
-    function batchSetMaxLeverage(uint256[] memory _assetIds, uint256 _maxLeverage) external onlyOperator(3) {
-        for(uint256 i; i<_assetIds.length; i++){
-            uint256 _assetId = _assetIds[i];
-            Asset memory asset = assets[_assetId];
-            require(asset.maxLeverage > 0, "!newAsset");
-            asset.maxLeverage = _maxLeverage;
-            assets[_assetId] = asset;
-            emit SetAsset(
-                _assetId,
-                asset.symbol,
-                asset.pythId,
-                asset.price,
-                asset.timestamp,
-                asset.allowedStaleness,
-                asset.allowedDeviation,
-                asset.maxLeverage
-            );
-        }
     }
 
     function setUsdAsset(
@@ -182,14 +122,14 @@ contract PriceManager is Constants, Initializable, IPriceManager {
 
         tokenAddressToAssetId[_tokenAddress] = _assetId;
         assets[_assetId] = Asset({
-            symbol: _symbol,
-            pythId: _pythId,
-            price: _price,
-            timestamp: block.timestamp,
-            allowedStaleness: _allowedStaleness,
-            allowedDeviation: _allowedDeviation,
-            maxLeverage: 0,
-            tokenDecimals: _tokenDecimals
+        symbol: _symbol,
+        pythId: _pythId,
+        price: _price,
+        timestamp: block.timestamp,
+        allowedStaleness: _allowedStaleness,
+        allowedDeviation: _allowedDeviation,
+        maxLeverage: 0,
+        tokenDecimals: _tokenDecimals
         });
 
         emit SetUsdAsset(
@@ -243,8 +183,8 @@ contract PriceManager is Constants, Initializable, IPriceManager {
             //skip validation if pyth not enabled for this asset
             uint256 priceOnChain = getPythLastPrice(_assetId, false);
             uint256 deviation = _price > priceOnChain
-                ? ((_price - priceOnChain) * BASIS_POINTS_DIVISOR) / priceOnChain
-                : ((priceOnChain - _price) * BASIS_POINTS_DIVISOR) / priceOnChain;
+            ? ((_price - priceOnChain) * BASIS_POINTS_DIVISOR) / priceOnChain
+            : ((priceOnChain - _price) * BASIS_POINTS_DIVISOR) / priceOnChain;
             require(deviation <= assets[_assetId].allowedDeviation, "need update pyth price");
         }
         assets[_assetId].price = _price;

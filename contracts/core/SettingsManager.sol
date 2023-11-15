@@ -37,7 +37,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
     event SetFeeManager(address indexed feeManager);
     event SetDefaultMaxProfitPercent(uint256 defaultMaxProfitPercent);
     event SetMaxProfitPercent(uint256 tokenId, uint256 maxProfitPercent);
-    event SetMaxTotalVlp(uint256 maxTotalVlp);
+    event SetMaxTotalBlp(uint256 maxTotalBlp);
 
     /* ========== VAULT SWITCH ========== */
     mapping(address => bool) public override isDeposit;
@@ -181,7 +181,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
     mapping(uint256 => mapping(bool => uint256)) public borrowFeeFactorPerAssetPerSide;
     mapping(uint256 => uint256) public tierRebates; // tier => rebate percent for trader
     mapping(address => uint256) public override platformFees; // address of 3rd platform to receive platform fee => fee percent
-    uint256 public override maxTotalVlp;
+    uint256 public override maxTotalBlp;
 
     mapping(uint256 => uint256) public override minProfitDurations; // tokenId => minProfitDuration
     mapping(uint256 => uint256) public override maxCloseProfits; // tokenId => maxCloseProfit
@@ -235,11 +235,11 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         maxFundingRate = FUNDING_RATE_PRECISION / 100; // 1% per hour
         maxTotalOpenInterest = 10000000000 * PRICE_PRECISION;
         unused = 10000; // 10%
-        maxTotalVlp = 20 * 10 ** 6 * 10 ** VLP_DECIMALS; // 20mil max vlp supply
+        maxTotalBlp = 20 * 10 ** 6 * 10 ** BLP_DECIMALS; // 20mil max blp supply
     }
 
     function initializeV2() public reinitializer(2) {
-        bountyPercent_ = BountyPercent({firstCaller: 2000, resolver: 8000}); // first caller 2%, resolver 8% and leftover 90% to vlp
+        bountyPercent_ = BountyPercent({firstCaller: 2000, resolver: 8000}); // first caller 2%, resolver 8% and leftover 90% to blp
     }
 
     function initializeV3() public reinitializer(3) {
@@ -286,10 +286,10 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         emit SetMaxProfitPercent(_tokenId, _maxProfitPercent);
     }
 
-    function setMaxTotalVlp(uint256 _maxTotalVlp) external onlyOperator(3) {
-        require(_maxTotalVlp > 0, "invalid maxTotalVlp");
-        maxTotalVlp = _maxTotalVlp;
-        emit SetMaxTotalVlp(_maxTotalVlp);
+    function setMaxTotalBlp(uint256 _maxTotalBlp) external onlyOperator(3) {
+        require(_maxTotalBlp > 0, "invalid maxTotalBlp");
+        maxTotalBlp = _maxTotalBlp;
+        emit SetMaxTotalBlp(_maxTotalBlp);
     }
 
     /* ========== VAULT SWITCH ========== */
@@ -362,9 +362,9 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         uint256 _sizeDelta
     ) external view override returns (uint256) {
         return
-            (getUndiscountedTradingFee(_tokenId, _isLong, _sizeDelta) *
-                (BASIS_POINTS_DIVISOR - deductFeePercent[_account]) *
-                tokenFarm.getTierVela(_account)) / BASIS_POINTS_DIVISOR ** 2;
+        (getUndiscountedTradingFee(_tokenId, _isLong, _sizeDelta) *
+        (BASIS_POINTS_DIVISOR - deductFeePercent[_account]) *
+        tokenFarm.getTierBsm(_account)) / BASIS_POINTS_DIVISOR ** 2;
     }
 
     function getUndiscountedTradingFee(
@@ -415,9 +415,9 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         int256 _fundingIndex
     ) public view override returns (int256) {
         return
-            _isLong
-                ? (int256(_size) * (getLatestFundingIndex(_tokenId) - _fundingIndex)) / int256(FUNDING_RATE_PRECISION)
-                : (int256(_size) * (_fundingIndex - getLatestFundingIndex(_tokenId))) / int256(FUNDING_RATE_PRECISION);
+        _isLong
+        ? (int256(_size) * (getLatestFundingIndex(_tokenId) - _fundingIndex)) / int256(FUNDING_RATE_PRECISION)
+        : (int256(_size) * (_fundingIndex - getLatestFundingIndex(_tokenId))) / int256(FUNDING_RATE_PRECISION);
     }
 
     // calculate latestFundingIndex based on fundingChange
@@ -443,9 +443,9 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
 
         if (assetLongOI >= assetShortOI) {
             uint256 fundingRate = ((assetLongOI - assetShortOI) *
-                fundingRateFactor[_tokenId] *
-                basisFundingRateFactor *
-                BASIS_POINTS_DIVISOR) / usdBalanceInVault;
+            fundingRateFactor[_tokenId] *
+            basisFundingRateFactor *
+            BASIS_POINTS_DIVISOR) / usdBalanceInVault;
 
             if (fundingRate > maxFundingRate) {
                 return int256(maxFundingRate);
@@ -454,9 +454,9 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
             }
         } else {
             uint256 fundingRate = ((assetShortOI - assetLongOI) *
-                fundingRateFactor[_tokenId] *
-                basisFundingRateFactor *
-                BASIS_POINTS_DIVISOR) / usdBalanceInVault;
+            fundingRateFactor[_tokenId] *
+            basisFundingRateFactor *
+            BASIS_POINTS_DIVISOR) / usdBalanceInVault;
 
             if (fundingRate > maxFundingRate) {
                 return -1 * int256(maxFundingRate);
@@ -486,9 +486,9 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         bool _isLong
     ) public view override returns (uint256) {
         return
-            ((block.timestamp - _lastIncreasedTime) * _borrowedSize * getBorrowRate(_tokenId, _isLong)) /
-            (BASIS_POINTS_DIVISOR * 10) /
-            1 hours;
+        ((block.timestamp - _lastIncreasedTime) * _borrowedSize * getBorrowRate(_tokenId, _isLong)) /
+        (BASIS_POINTS_DIVISOR * 10) /
+        1 hours;
     }
 
     // get borrow rate per hour with 1e6 decimals
@@ -762,9 +762,9 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         uint256 slippage = getSlippage(_slippageFactor, _size);
 
         return
-            _isLong
-                ? (_price * (BASIS_POINTS_DIVISOR + slippage)) / BASIS_POINTS_DIVISOR
-                : (_price * (BASIS_POINTS_DIVISOR - slippage)) / BASIS_POINTS_DIVISOR;
+        _isLong
+        ? (_price * (BASIS_POINTS_DIVISOR + slippage)) / BASIS_POINTS_DIVISOR
+        : (_price * (BASIS_POINTS_DIVISOR - slippage)) / BASIS_POINTS_DIVISOR;
     }
 
     function getSlippage(uint256 _slippageFactor, uint256 _size) public view returns (uint256) {
@@ -832,9 +832,9 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
     function checkDelegation(address _master, address _delegate) public view override returns (bool) {
         require(!checkBanList(_master), "account banned");
         return
-            _master == _delegate ||
-            globalDelegates[_delegate] ||
-            EnumerableSetUpgradeable.contains(_delegatesByMaster[_master], _delegate);
+        _master == _delegate ||
+        globalDelegates[_delegate] ||
+        EnumerableSetUpgradeable.contains(_delegatesByMaster[_master], _delegate);
     }
 
     /* ========== BAN MECHANISM========== */

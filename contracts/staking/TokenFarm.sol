@@ -22,9 +22,9 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         uint256 startTimestamp;
     }
 
-    struct VelaUserInfo {
-        uint256 velaAmount;
-        uint256 esvelaAmount;
+    struct BsmUserInfo {
+        uint256 bsmAmount;
+        uint256 esbsmAmount;
         uint256 startTimestamp;
     }
 
@@ -38,9 +38,9 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     uint256 public totalLockedUpRewards;
     // The precision factor
     uint256 private ACC_TOKEN_PRECISION;
-    IBoringERC20 public esVELA;
-    IBoringERC20 public VELA;
-    IBoringERC20 public VLP;
+    IBoringERC20 public esBSM;
+    IBoringERC20 public BSM;
+    IBoringERC20 public BLP;
     IOperators public operators;
     EnumerableSetUpgradeable.AddressSet private cooldownWhiteList;
     uint256 public cooldownDuration;
@@ -49,15 +49,15 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     uint256[] public tierLevels;
     uint256[] public tierPercents;
     // Info of each pool
-    PoolInfo public velaPoolInfo;
-    PoolInfo public vlpPoolInfo;
+    PoolInfo public bsmPoolInfo;
+    PoolInfo public blpPoolInfo;
     //PoolInfo[] public poolInfo;
     // Info of each user that stakes LP tokens.
     mapping(address => uint256) public claimedAmounts;
     mapping(address => uint256) public unlockedVestingAmounts;
     mapping(address => uint256) public lastVestingUpdateTimes;
-    mapping(address => VelaUserInfo) public velaUserInfo;
-    mapping(address => UserInfo) public vlpUserInfo;
+    mapping(address => BsmUserInfo) public bsmUserInfo;
+    mapping(address => UserInfo) public blpUserInfo;
     mapping(address => uint256) public lockedVestingAmounts;
 
     event FarmDeposit(address indexed user, IBoringERC20 indexed token, uint256 amount);
@@ -82,18 +82,18 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     function initialize(
         uint256 _vestingDuration,
-        IBoringERC20 _esVELA,
-        IBoringERC20 _VELA,
-        IBoringERC20 _vlp,
+        IBoringERC20 _esBSM,
+        IBoringERC20 _BSM,
+        IBoringERC20 _blp,
         address _operators
     ) public initializer {
         __ReentrancyGuard_init();
         //StartBlock always many years later from contract const ruct, will be set later in StartFarming function
         require(AddressUpgradeable.isContract(_operators), "operators invalid");
         operators = IOperators(_operators);
-        VELA = _VELA;
-        esVELA = _esVELA;
-        VLP = _vlp;
+        BSM = _BSM;
+        esBSM = _esBSM;
+        BLP = _blp;
         ACC_TOKEN_PRECISION = 1e12;
         cooldownDuration = 1 weeks;
         vestingDuration = _vestingDuration;
@@ -117,30 +117,30 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     // ----- START: Operator Logic -----
     // Update rewarders and enableCooldown for pools
-    function setVelaPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
+    function setBsmPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
         require(_rewarders.length <= 10, "set: too many rewarders");
 
         for (uint256 rewarderId = 0; rewarderId < _rewarders.length; ++rewarderId) {
             require(AddressUpgradeable.isContract(address(_rewarders[rewarderId])), "set: rewarder must be contract");
         }
 
-        velaPoolInfo.rewarders = _rewarders;
-        velaPoolInfo.enableCooldown = _enableCooldown;
+        bsmPoolInfo.rewarders = _rewarders;
+        bsmPoolInfo.enableCooldown = _enableCooldown;
 
-        emit Set(VELA, _rewarders);
+        emit Set(BSM, _rewarders);
     }
 
-    function setVlpPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
+    function setBlpPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
         require(_rewarders.length <= 10, "set: too many rewarders");
 
         for (uint256 rewarderId = 0; rewarderId < _rewarders.length; ++rewarderId) {
             require(AddressUpgradeable.isContract(address(_rewarders[rewarderId])), "set: rewarder must be contract");
         }
 
-        vlpPoolInfo.rewarders = _rewarders;
-        vlpPoolInfo.enableCooldown = _enableCooldown;
+        blpPoolInfo.rewarders = _rewarders;
+        blpPoolInfo.enableCooldown = _enableCooldown;
 
-        emit Set(VLP, _rewarders);
+        emit Set(BLP, _rewarders);
     }
 
     function updateCooldownDuration(uint256 _newCooldownDuration) external onlyOperator(1) {
@@ -173,7 +173,7 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     // ----- END: Operator Logic -----
 
-    // ----- START: Vesting esVELA -> VELA -----
+    // ----- START: Vesting esBSM -> BSM -----
 
     function claim() external nonReentrant {
         address account = msg.sender;
@@ -213,7 +213,7 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         uint256 totalLocked = lockedVestingAmounts[account];
         require(totalLocked > 0, "Vester: vested amount is zero");
 
-        esVELA.safeTransfer(_receiver, totalLocked - totalClaimed);
+        esBSM.safeTransfer(_receiver, totalLocked - totalClaimed);
         _decreaseLockedVestingAmount(account, totalLocked);
 
         delete claimedAmounts[account];
@@ -225,8 +225,8 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     function _claim(address _account, address _receiver) internal returns (uint256) {
         uint256 amount = claimable(_account);
         claimedAmounts[_account] = claimedAmounts[_account] + amount;
-        IMintable(address(esVELA)).burn(address(this), amount);
-        VELA.safeTransfer(_receiver, amount);
+        IMintable(address(esBSM)).burn(address(this), amount);
+        BSM.safeTransfer(_receiver, amount);
         emit VestingClaim(_account, amount);
         return amount;
     }
@@ -235,10 +235,10 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         _depositVesting(msg.sender, _amount);
     }
 
-    function depositVelaForVesting(uint256 _amount) external nonReentrant {
+    function depositBsmForVesting(uint256 _amount) external nonReentrant {
         require(_amount > 0, "zero amount");
-        VELA.safeTransferFrom(msg.sender, address(this), _amount); //transfer VELA in
-        esVELA.mint(msg.sender, _amount);
+        BSM.safeTransferFrom(msg.sender, address(this), _amount); //transfer BSM in
+        esBSM.mint(msg.sender, _amount);
         emit MintVestingToken(msg.sender, _amount);
     }
 
@@ -261,18 +261,18 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
         lastVestingUpdateTimes[_account] = block.timestamp;
 
-        esVELA.safeTransferFrom(_account, address(this), _amount);
+        esBSM.safeTransferFrom(_account, address(this), _amount);
 
         emit VestingDeposit(_account, _amount);
     }
 
-    function getStakedVela(address _account) external view returns (uint256, uint256) {
-        VelaUserInfo memory user = velaUserInfo[_account];
-        return (user.velaAmount, user.esvelaAmount);
+    function getStakedBsm(address _account) external view returns (uint256, uint256) {
+        BsmUserInfo memory user = bsmUserInfo[_account];
+        return (user.bsmAmount, user.esbsmAmount);
     }
 
-    function getStakedVLP(address _account) external view returns (uint256, uint256) {
-        UserInfo memory user = vlpUserInfo[_account];
+    function getStakedBLP(address _account) external view returns (uint256, uint256) {
+        UserInfo memory user = blpUserInfo[_account];
         return (user.amount, user.startTimestamp);
     }
 
@@ -280,181 +280,181 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         return lockedVestingAmounts[_account];
     }
 
-    // ----- END: Vesting esVELA -> VELA -----
+    // ----- END: Vesting esBSM -> BSM -----
 
-    // ----- START: VELA Pool, pid=0, token VELA -----
-    function depositVela(uint256 _amount) external nonReentrant {
-        _depositVela(_amount);
+    // ----- START: BSM Pool, pid=0, token BSM -----
+    function depositBsm(uint256 _amount) external nonReentrant {
+        _depositBsm(_amount);
     }
 
-    function _depositVela(uint256 _amount) internal {
+    function _depositBsm(uint256 _amount) internal {
         uint256 _pid = 0;
-        PoolInfo storage pool = velaPoolInfo;
-        VelaUserInfo storage user = velaUserInfo[msg.sender];
+        PoolInfo storage pool = bsmPoolInfo;
+        BsmUserInfo storage user = bsmUserInfo[msg.sender];
 
         if (_amount > 0) {
-            VELA.safeTransferFrom(msg.sender, address(this), _amount);
-            user.velaAmount += _amount;
+            BSM.safeTransferFrom(msg.sender, address(this), _amount);
+            user.bsmAmount += _amount;
             user.startTimestamp = block.timestamp;
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onVelaReward(_pid, msg.sender, user.velaAmount + user.esvelaAmount);
+            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp += _amount;
         }
-        emit FarmDeposit(msg.sender, VELA, _amount);
+        emit FarmDeposit(msg.sender, BSM, _amount);
     }
 
     //withdraw tokens
-    function withdrawVela(uint256 _amount) external nonReentrant {
+    function withdrawBsm(uint256 _amount) external nonReentrant {
         uint256 _pid = 0;
-        PoolInfo storage pool = velaPoolInfo;
-        VelaUserInfo storage user = velaUserInfo[msg.sender];
+        PoolInfo storage pool = bsmPoolInfo;
+        BsmUserInfo storage user = bsmUserInfo[msg.sender];
 
         //this will make sure that user can only withdraw from his pool
-        require(user.velaAmount >= _amount, "withdraw: user amount not enough");
+        require(user.bsmAmount >= _amount, "withdraw: user amount not enough");
 
         if (_amount > 0) {
             require(
                 !pool.enableCooldown || user.startTimestamp + cooldownDuration < block.timestamp,
                 "didn't pass cooldownDuration"
             );
-            user.velaAmount -= _amount;
-            VELA.safeTransfer(msg.sender, _amount);
+            user.bsmAmount -= _amount;
+            BSM.safeTransfer(msg.sender, _amount);
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onVelaReward(_pid, msg.sender, user.velaAmount + user.esvelaAmount);
+            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp -= _amount;
         }
 
-        emit FarmWithdraw(msg.sender, VELA, _amount);
+        emit FarmWithdraw(msg.sender, BSM, _amount);
     }
 
-    // ----- END: VELA Pool, pid=0, token VELA -----
+    // ----- END: BSM Pool, pid=0, token BSM -----
 
-    // ----- START: VELA Pool, pid=0, token esVELA -----
-    function depositEsvela(uint256 _amount) external nonReentrant {
-        _depositEsvela(_amount);
+    // ----- START: BSM Pool, pid=0, token esBSM -----
+    function depositEsbsm(uint256 _amount) external nonReentrant {
+        _depositEsbsm(_amount);
     }
 
-    function _depositEsvela(uint256 _amount) internal {
+    function _depositEsbsm(uint256 _amount) internal {
         uint256 _pid = 0;
-        PoolInfo storage pool = velaPoolInfo;
-        VelaUserInfo storage user = velaUserInfo[msg.sender];
+        PoolInfo storage pool = bsmPoolInfo;
+        BsmUserInfo storage user = bsmUserInfo[msg.sender];
 
         if (_amount > 0) {
-            esVELA.safeTransferFrom(msg.sender, address(this), _amount);
-            user.esvelaAmount += _amount;
+            esBSM.safeTransferFrom(msg.sender, address(this), _amount);
+            user.esbsmAmount += _amount;
             user.startTimestamp = block.timestamp;
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onVelaReward(_pid, msg.sender, user.velaAmount + user.esvelaAmount);
+            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp += _amount;
         }
-        emit FarmDeposit(msg.sender, esVELA, _amount);
+        emit FarmDeposit(msg.sender, esBSM, _amount);
     }
 
     //withdraw tokens
-    function withdrawEsvela(uint256 _amount) external nonReentrant {
+    function withdrawEsbsm(uint256 _amount) external nonReentrant {
         uint256 _pid = 0;
-        PoolInfo storage pool = velaPoolInfo;
-        VelaUserInfo storage user = velaUserInfo[msg.sender];
+        PoolInfo storage pool = bsmPoolInfo;
+        BsmUserInfo storage user = bsmUserInfo[msg.sender];
 
         //this will make sure that user can only withdraw from his pool
-        require(user.esvelaAmount >= _amount, "withdraw: user amount not enough");
+        require(user.esbsmAmount >= _amount, "withdraw: user amount not enough");
 
         if (_amount > 0) {
             require(
                 !pool.enableCooldown || user.startTimestamp + cooldownDuration < block.timestamp,
                 "didn't pass cooldownDuration"
             );
-            user.esvelaAmount -= _amount;
-            esVELA.safeTransfer(msg.sender, _amount);
+            user.esbsmAmount -= _amount;
+            esBSM.safeTransfer(msg.sender, _amount);
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onVelaReward(_pid, msg.sender, user.velaAmount + user.esvelaAmount);
+            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp -= _amount;
         }
 
-        emit FarmWithdraw(msg.sender, esVELA, _amount);
+        emit FarmWithdraw(msg.sender, esBSM, _amount);
     }
 
-    // ----- END: VELA Pool, pid=0, token esVELA -----
+    // ----- END: BSM Pool, pid=0, token esBSM -----
 
-    // ----- START: both VELA and esVELA, pid=0
+    // ----- START: both BSM and esBSM, pid=0
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    // token VELA and esVELA
-    function emergencyWithdrawVela() external nonReentrant {
-        PoolInfo storage pool = velaPoolInfo;
-        VelaUserInfo storage user = velaUserInfo[msg.sender];
-        uint256 _velaAmount = user.velaAmount;
-        uint256 _esVelaAmount = user.esvelaAmount;
-        if (_esVelaAmount > 0 || _velaAmount > 0) {
+    // token BSM and esBSM
+    function emergencyWithdrawBsm() external nonReentrant {
+        PoolInfo storage pool = bsmPoolInfo;
+        BsmUserInfo storage user = bsmUserInfo[msg.sender];
+        uint256 _bsmAmount = user.bsmAmount;
+        uint256 _esBsmAmount = user.esbsmAmount;
+        if (_esBsmAmount > 0 || _bsmAmount > 0) {
             require(
                 !pool.enableCooldown || user.startTimestamp + cooldownDuration <= block.timestamp,
                 "didn't pass cooldownDuration"
             );
         }
-        if (_velaAmount > 0) {
-            VELA.safeTransfer(msg.sender, _velaAmount);
-            pool.totalLp -= _velaAmount;
-            user.velaAmount = 0;
-            emit EmergencyWithdraw(msg.sender, VELA, _velaAmount);
+        if (_bsmAmount > 0) {
+            BSM.safeTransfer(msg.sender, _bsmAmount);
+            pool.totalLp -= _bsmAmount;
+            user.bsmAmount = 0;
+            emit EmergencyWithdraw(msg.sender, BSM, _bsmAmount);
         }
-        if (_esVelaAmount > 0) {
-            esVELA.safeTransfer(msg.sender, _esVelaAmount);
-            pool.totalLp -= _esVelaAmount;
-            user.esvelaAmount = 0;
-            emit EmergencyWithdraw(msg.sender, esVELA, _esVelaAmount);
+        if (_esBsmAmount > 0) {
+            esBSM.safeTransfer(msg.sender, _esBsmAmount);
+            pool.totalLp -= _esBsmAmount;
+            user.esbsmAmount = 0;
+            emit EmergencyWithdraw(msg.sender, esBSM, _esBsmAmount);
         }
     }
 
-    // ----- END: both VELA and esVELA, pid=0
+    // ----- END: both BSM and esBSM, pid=0
 
-    // ----- START: VLP Pool, pid=1, token VLP -----
+    // ----- START: BLP Pool, pid=1, token BLP -----
 
-    function depositVlp(uint256 _amount) external {
-        _depositVlp(_amount);
+    function depositBlp(uint256 _amount) external {
+        _depositBlp(_amount);
     }
 
-    function _depositVlp(uint256 _amount) internal {
+    function _depositBlp(uint256 _amount) internal {
         uint256 _pid = 1;
-        PoolInfo storage pool = vlpPoolInfo;
-        UserInfo storage user = vlpUserInfo[msg.sender];
+        PoolInfo storage pool = blpPoolInfo;
+        UserInfo storage user = blpUserInfo[msg.sender];
         if (_amount > 0) {
-            VLP.safeTransferFrom(msg.sender, address(this), _amount);
+            BLP.safeTransferFrom(msg.sender, address(this), _amount);
             user.amount += _amount;
             user.startTimestamp = block.timestamp;
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onVelaReward(_pid, msg.sender, user.amount);
+            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.amount);
         }
 
         if (_amount > 0) {
             pool.totalLp += _amount;
         }
-        emit FarmDeposit(msg.sender, VLP, _amount);
+        emit FarmDeposit(msg.sender, BLP, _amount);
     }
 
-    function emergencyWithdrawVlp() external {
-        PoolInfo storage pool = vlpPoolInfo;
-        UserInfo storage user = vlpUserInfo[msg.sender];
+    function emergencyWithdrawBlp() external {
+        PoolInfo storage pool = blpPoolInfo;
+        UserInfo storage user = blpUserInfo[msg.sender];
         uint256 _amount = user.amount;
         if (_amount > 0) {
             if (!checkCooldownWhiteList(msg.sender)) {
@@ -463,18 +463,18 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
                     "didn't pass cooldownDuration"
                 );
             }
-            VLP.safeTransfer(msg.sender, _amount);
+            BLP.safeTransfer(msg.sender, _amount);
             pool.totalLp -= _amount;
         }
         user.amount = 0;
-        emit EmergencyWithdraw(msg.sender, VLP, _amount);
+        emit EmergencyWithdraw(msg.sender, BLP, _amount);
     }
 
     //withdraw tokens
-    function withdrawVlp(uint256 _amount) external nonReentrant {
+    function withdrawBlp(uint256 _amount) external nonReentrant {
         uint256 _pid = 1;
-        PoolInfo storage pool = vlpPoolInfo;
-        UserInfo storage user = vlpUserInfo[msg.sender];
+        PoolInfo storage pool = blpPoolInfo;
+        UserInfo storage user = blpUserInfo[msg.sender];
 
         //this will make sure that user can only withdraw from his pool
         require(user.amount >= _amount, "withdraw: user amount not enough");
@@ -487,29 +487,29 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
                 );
             }
             user.amount -= _amount;
-            VLP.safeTransfer(msg.sender, _amount);
+            BLP.safeTransfer(msg.sender, _amount);
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onVelaReward(_pid, msg.sender, user.amount);
+            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.amount);
         }
 
         if (_amount > 0) {
             pool.totalLp -= _amount;
         }
 
-        emit FarmWithdraw(msg.sender, VLP, _amount);
+        emit FarmWithdraw(msg.sender, BLP, _amount);
     }
 
-    // ----- END: VLP Pool, pid=1, token VLP -----
+    // ----- END: BLP Pool, pid=1, token BLP -----
 
     // View function to see rewarders for a pool
-    function poolRewarders(bool _isVelaPool) external view returns (address[] memory rewarders) {
+    function poolRewarders(bool _isBsmPool) external view returns (address[] memory rewarders) {
         PoolInfo storage pool;
-        if (_isVelaPool) {
-            pool = velaPoolInfo;
+        if (_isBsmPool) {
+            pool = bsmPoolInfo;
         } else {
-            pool = vlpPoolInfo;
+            pool = blpPoolInfo;
         }
         rewarders = new address[](pool.rewarders.length);
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
@@ -519,25 +519,25 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     /// @notice View function to see pool rewards per sec
     function poolRewardsPerSec(
-        bool _isVelaPool
+        bool _isBsmPool
     )
-        external
-        view
-        returns (
-            address[] memory addresses,
-            string[] memory symbols,
-            uint256[] memory decimals,
-            uint256[] memory rewardsPerSec
-        )
+    external
+    view
+    returns (
+        address[] memory addresses,
+        string[] memory symbols,
+        uint256[] memory decimals,
+        uint256[] memory rewardsPerSec
+    )
     {
         uint256 _pid;
         PoolInfo storage pool;
-        if (_isVelaPool) {
+        if (_isBsmPool) {
             _pid = 0;
-            pool = velaPoolInfo;
+            pool = bsmPoolInfo;
         } else {
             _pid = 1;
-            pool = vlpPoolInfo;
+            pool = blpPoolInfo;
         }
 
         addresses = new address[](pool.rewarders.length);
@@ -559,35 +559,35 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     function poolTotalLp(uint256 _pid) external view returns (uint256) {
         PoolInfo storage pool;
         if (_pid == 0) {
-            pool = velaPoolInfo;
+            pool = bsmPoolInfo;
         } else {
-            pool = vlpPoolInfo;
+            pool = blpPoolInfo;
         }
         return pool.totalLp;
     }
 
     // View function to see pending rewards on frontend.
     function pendingTokens(
-        bool _isVelaPool,
+        bool _isBsmPool,
         address _user
     )
-        external
-        view
-        returns (
-            address[] memory addresses,
-            string[] memory symbols,
-            uint256[] memory decimals,
-            uint256[] memory amounts
-        )
+    external
+    view
+    returns (
+        address[] memory addresses,
+        string[] memory symbols,
+        uint256[] memory decimals,
+        uint256[] memory amounts
+    )
     {
         uint256 _pid;
         PoolInfo storage pool;
-        if (_isVelaPool) {
+        if (_isBsmPool) {
             _pid = 0;
-            pool = velaPoolInfo;
+            pool = bsmPoolInfo;
         } else {
             _pid = 1;
-            pool = vlpPoolInfo;
+            pool = blpPoolInfo;
         }
         addresses = new address[](pool.rewarders.length);
         symbols = new string[](pool.rewarders.length);
@@ -605,15 +605,15 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     }
 
     // Function to harvest many pools in a single transaction
-    function harvestMany(bool _vela, bool _esvela, bool _vlp, bool _vesting) public nonReentrant {
-        if (_vela) {
-            _depositVela(0);
+    function harvestMany(bool _bsm, bool _esbsm, bool _blp, bool _vesting) public nonReentrant {
+        if (_bsm) {
+            _depositBsm(0);
         }
-        if (_esvela) {
-            _depositEsvela(0);
+        if (_esbsm) {
+            _depositEsbsm(0);
         }
-        if (_vlp) {
-            _depositVlp(0);
+        if (_blp) {
+            _depositBlp(0);
         }
         if (_vesting) {
             _claim(msg.sender, msg.sender);
@@ -631,41 +631,41 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         harvestMany(x & (2 ** 3) > 0, x & (2 ** 2) > 0, x & 2 > 0, x & 1 > 0);
     }
 
-    function getTierVela(address _account) external view override returns (uint256) {
-        VelaUserInfo storage user = velaUserInfo[_account];
-        uint256 amount = user.velaAmount + user.esvelaAmount;
+    function getTierBsm(address _account) external view override returns (uint256) {
+        BsmUserInfo storage user = bsmUserInfo[_account];
+        uint256 amount = user.bsmAmount + user.esbsmAmount;
         if (tierLevels.length == 0 || amount < tierLevels[0]) {
             return BASIS_POINTS_DIVISOR;
         }
-        unchecked {
-            for (uint16 i = 1; i != tierLevels.length; ++i) {
-                if (amount < tierLevels[i]) {
-                    return tierPercents[i - 1];
-                }
+    unchecked {
+        for (uint16 i = 1; i != tierLevels.length; ++i) {
+            if (amount < tierLevels[i]) {
+                return tierPercents[i - 1];
             }
-            return tierPercents[tierLevels.length - 1];
         }
+        return tierPercents[tierLevels.length - 1];
+    }
     }
 
     function _validateLevels(uint256[] memory _levels) internal pure returns (bool) {
-        unchecked {
-            for (uint16 i = 1; i != _levels.length; ++i) {
-                if (_levels[i - 1] >= _levels[i]) {
-                    return false;
-                }
+    unchecked {
+        for (uint16 i = 1; i != _levels.length; ++i) {
+            if (_levels[i - 1] >= _levels[i]) {
+                return false;
             }
-            return true;
         }
+        return true;
+    }
     }
 
     function _validatePercents(uint256[] memory _percents) internal pure returns (bool) {
-        unchecked {
-            for (uint16 i = 0; i != _percents.length; ++i) {
-                if (_percents[i] > BASIS_POINTS_DIVISOR) {
-                    return false;
-                }
+    unchecked {
+        for (uint16 i = 0; i != _percents.length; ++i) {
+            if (_percents[i] > BASIS_POINTS_DIVISOR) {
+                return false;
             }
-            return true;
         }
+        return true;
+    }
     }
 }

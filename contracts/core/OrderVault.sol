@@ -202,12 +202,12 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
         require(addPositionOrders[_posId].size == 0, "addPositionOrder already exists");
 
         addPositionOrders[_posId] = AddPositionOrder({
-            owner: _owner,
-            collateral: _collateralDelta,
-            size: _sizeDelta,
-            allowedPrice: _allowedPrice,
-            timestamp: block.timestamp,
-            fee: _fee
+        owner: _owner,
+        collateral: _collateralDelta,
+        size: _sizeDelta,
+        allowedPrice: _allowedPrice,
+        timestamp: block.timestamp,
+        fee: _fee
         });
     }
 
@@ -234,9 +234,9 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
         require(decreasePositionOrders[_posId].size == 0, "decreasePositionOrder already exists");
 
         decreasePositionOrders[_posId] = DecreasePositionOrder({
-            size: _sizeDelta,
-            allowedPrice: _allowedPrice,
-            timestamp: block.timestamp
+        size: _sizeDelta,
+        allowedPrice: _allowedPrice,
+        timestamp: block.timestamp
         });
     }
 
@@ -259,7 +259,7 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
         require(_prices.length > 0, "empty order");
         require(
             EnumerableSetUpgradeable.length(aliveTriggerIds[_posId]) + _prices.length <=
-                settingsManager.maxTriggerPerPosition(),
+            settingsManager.maxTriggerPerPosition(),
             "too many triggers"
         );
         PositionTrigger storage triggerOrder = triggerOrders[_posId];
@@ -271,14 +271,14 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
             EnumerableSetUpgradeable.add(aliveTriggerIds[_posId], triggersLength);
             triggerOrder.triggers.push(
                 TriggerInfo({
-                    isTP: _isTPs[i],
-                    amountPercent: _amountPercents[i],
-                    createdAt: block.timestamp,
-                    price: _prices[i],
-                    triggeredAmount: 0,
-                    triggeredAt: 0,
-                    status: TriggerStatus.OPEN
-                })
+            isTP: _isTPs[i],
+            amountPercent: _amountPercents[i],
+            createdAt: block.timestamp,
+            price: _prices[i],
+            triggeredAmount: 0,
+            triggeredAt: 0,
+            status: TriggerStatus.OPEN
+            })
             );
             emit AddTriggerOrders(
                 _posId,
@@ -440,12 +440,12 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
         uint256 oldStpPrice = order.stpPrice;
         if (position.isLong) {
             order.stpPrice = order.stepType == 0
-                ? price - order.stepAmount
-                : (price * (BASIS_POINTS_DIVISOR - order.stepAmount)) / BASIS_POINTS_DIVISOR;
+            ? price - order.stepAmount
+            : (price * (BASIS_POINTS_DIVISOR - order.stepAmount)) / BASIS_POINTS_DIVISOR;
         } else {
             order.stpPrice = order.stepType == 0
-                ? price + order.stepAmount
-                : (price * (BASIS_POINTS_DIVISOR + order.stepAmount)) / BASIS_POINTS_DIVISOR;
+            ? price + order.stepAmount
+            : (price * (BASIS_POINTS_DIVISOR + order.stepAmount)) / BASIS_POINTS_DIVISOR;
         }
         uint256 diff;
         if (order.stpPrice > oldStpPrice) {
@@ -492,9 +492,9 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
             flag = true;
         } else if (
             !_isLong &&
-            order.status == OrderStatus.PENDING &&
-            order.positionType == POSITION_TRAILING_STOP &&
-            stopPrice >= price
+        order.status == OrderStatus.PENDING &&
+        order.positionType == POSITION_TRAILING_STOP &&
+        stopPrice >= price
         ) {
             flag = true;
         }

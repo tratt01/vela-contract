@@ -84,8 +84,8 @@ contract LiquidateVault is Constants, Initializable, ReentrancyGuardUpgradeable,
         require(isPositionLiquidatable, "position is not liquidatable");
         require(
             operators.getOperatorLevel(msg.sender) >= 1 ||
-                (msg.sender == liquidateRegistrant[_posId] &&
-                    liquidateRegisterTime[_posId] + settingsManager.liquidationPendingTime() <= block.timestamp),
+            (msg.sender == liquidateRegistrant[_posId] &&
+            liquidateRegisterTime[_posId] + settingsManager.liquidationPendingTime() <= block.timestamp),
             "not manager or not allowed before pendingTime"
         );
 
@@ -94,7 +94,7 @@ contract LiquidateVault is Constants, Initializable, ReentrancyGuardUpgradeable,
         (uint32 firstCallerPercent, uint32 resolverPercent) = settingsManager.bountyPercent();
         uint256 firstCallerBounty = (position.collateral * uint256(firstCallerPercent)) / BASIS_POINTS_DIVISOR;
         uint256 resolverBounty = (position.collateral * uint256(resolverPercent)) / BASIS_POINTS_DIVISOR;
-        uint256 vlpBounty = position.collateral - firstCallerBounty - resolverBounty;
+        uint256 blpBounty = position.collateral - firstCallerBounty - resolverBounty;
 
         if (liquidateRegistrant[_posId] == address(0)) {
             vault.takeVUSDOut(msg.sender, firstCallerBounty);
@@ -102,7 +102,7 @@ contract LiquidateVault is Constants, Initializable, ReentrancyGuardUpgradeable,
             vault.takeVUSDOut(liquidateRegistrant[_posId], firstCallerBounty);
         }
         vault.takeVUSDOut(msg.sender, resolverBounty);
-        vault.accountDeltaIntoTotalUSD(true, vlpBounty);
+        vault.accountDeltaIntoTotalUSD(true, blpBounty);
 
         settingsManager.updateFunding(position.tokenId);
         settingsManager.decreaseOpenInterest(position.tokenId, position.owner, position.isLong, position.size);
@@ -124,17 +124,17 @@ contract LiquidateVault is Constants, Initializable, ReentrancyGuardUpgradeable,
         Position memory position = positionVault.getPosition(_posId);
 
         return
-            validateLiquidation(
-                position.tokenId,
-                position.isLong,
-                position.size,
-                position.averagePrice,
-                priceManager.getLastPrice(position.tokenId),
-                position.lastIncreasedTime,
-                position.accruedBorrowFee,
-                position.fundingIndex,
-                position.collateral
-            );
+        validateLiquidation(
+            position.tokenId,
+            position.isLong,
+            position.size,
+            position.averagePrice,
+            priceManager.getLastPrice(position.tokenId),
+            position.lastIncreasedTime,
+            position.accruedBorrowFee,
+            position.fundingIndex,
+            position.collateral
+        );
     }
 
     function validateLiquidationWithPosidAndPrice(
@@ -144,17 +144,17 @@ contract LiquidateVault is Constants, Initializable, ReentrancyGuardUpgradeable,
         Position memory position = positionVault.getPosition(_posId);
 
         return
-            validateLiquidation(
-                position.tokenId,
-                position.isLong,
-                position.size,
-                position.averagePrice,
-                _price,
-                position.lastIncreasedTime,
-                position.accruedBorrowFee,
-                position.fundingIndex,
-                position.collateral
-            );
+        validateLiquidation(
+            position.tokenId,
+            position.isLong,
+            position.size,
+            position.averagePrice,
+            _price,
+            position.lastIncreasedTime,
+            position.accruedBorrowFee,
+            position.fundingIndex,
+            position.collateral
+        );
     }
 
     function validateLiquidation(
