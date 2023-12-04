@@ -8,8 +8,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../tokens/interfaces/IMintable.sol";
-import "../tokens/interfaces/IVUSD.sol";
-import "../tokens/interfaces/IBLP.sol";
+import "../tokens/interfaces/INUSD.sol";
 import "./interfaces/IPositionVault.sol";
 import "./interfaces/ILiquidateVault.sol";
 import "./interfaces/IOrderVault.sol";
@@ -30,8 +29,8 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
     IOperators public operators;
     IPriceManager private priceManager;
     ISettingsManager private settingsManager;
-    address private blp;
-    address private vusd;
+    address private nlp;
+    address private nusd;
     bool private isInitialized;
 
     // variables
@@ -44,7 +43,7 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
     event Deposit(address indexed account, address indexed token, uint256 amount);
     event Withdraw(address indexed account, address indexed token, uint256 amount);
     event Stake(address indexed account, address token, uint256 amount, uint256 mintAmount);
-    event Unstake(address indexed account, address token, uint256 blpAmount, uint256 amountOut);
+    event Unstake(address indexed account, address token, uint256 nlpAmount, uint256 amountOut);
     event ForceClose(uint256 indexed posId, address indexed account, uint256 exceededPnl);
     event ReferFeeTransfer(address indexed account, uint256 amount);
     event ReferFeeTraderRebate(address indexed account, uint256 amount, address indexed trader, uint256 rebate);
@@ -84,13 +83,13 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
 
     /* ========== INITIALIZE FUNCTIONS ========== */
 
-    function initialize(address _operators, address _blp, address _vusd) public initializer {
+    function initialize(address _operators, address _nlp, address _nusd) public initializer {
         require(AddressUpgradeable.isContract(_operators), "operators invalid");
 
         __ReentrancyGuard_init();
         operators = IOperators(_operators);
-        blp = _blp;
-        vusd = _vusd;
+        nlp = _nlp;
+        nusd = _nusd;
     }
 
     function setVaultSettings(
@@ -115,18 +114,13 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         isInitialized = true;
     }
 
-    function setBlpSettings() external onlyOperator(4) {
-        IBLP(blp).initialize(address(this),address(settingsManager));
-    }
-
-
     function setUSDC(IERC20Upgradeable _token) external onlyOperator(3) {
         USDC = _token;
     }
 
     /* ========== CORE FUNCTIONS ========== */
 
-    // deposit stablecoin to mint vusd
+    // deposit stablecoin to mint nusd
     function deposit(address _account, address _token, uint256 _amount) public nonReentrant preventBanners(msg.sender) {
         require(settingsManager.isDeposit(_token), "deposit not allowed");
         require(_amount > 0, "zero amount");
@@ -140,7 +134,7 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         uint256 depositFee = (usdAmount * settingsManager.depositFee(_token)) / BASIS_POINTS_DIVISOR;
         _distributeFee(depositFee, address(0), address(0));
 
-        IVUSD(vusd).mint(_account, usdAmount - depositFee);
+        INUSD(nusd).mint(_account, usdAmount - depositFee);
 
         emit Deposit(_account, _token, _amount);
     }
@@ -157,12 +151,12 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         deposit(msg.sender, address(USDC), USDC.balanceOf(msg.sender));
     }
 
-    // burn vusd to withdraw stablecoin
+    // burn nusd to withdraw stablecoin
     function withdraw(address _token, uint256 _amount) public nonReentrant preventBanners(msg.sender) {
         require(settingsManager.isWithdraw(_token), "withdraw not allowed");
         require(_amount > 0, "zero amount");
 
-        IVUSD(vusd).burn(address(msg.sender), _amount);
+        INUSD(nusd).burn(address(msg.sender), _amount);
 
         uint256 withdrawFee = (_amount * settingsManager.withdrawFee(_token)) / BASIS_POINTS_DIVISOR;
         _distributeFee(withdrawFee, address(0), address(0));
@@ -178,10 +172,10 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
     }
 
     function withdrawAllUSDC() external {
-        withdraw(address(USDC), IVUSD(vusd).balanceOf(msg.sender));
+        withdraw(address(USDC), INUSD(nusd).balanceOf(msg.sender));
     }
 
-    // stake stablecoin to mint blp
+    // stake stablecoin to mint nlp
     function stake(address _account, address _token, uint256 _amount) public nonReentrant preventBanners(msg.sender) {
         require(settingsManager.isStakingEnabled(_token), "staking disabled");
         require(_amount > 0, "zero amount");
@@ -194,22 +188,22 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         uint256 usdAmountAfterFee = usdAmount - stakingFee;
 
         uint256 mintAmount;
-        uint256 totalBLP = IERC20Upgradeable(blp).totalSupply();
-        if (totalBLP == 0) {
+        uint256 totalNLP = IERC20Upgradeable(nlp).totalSupply();
+        if (totalNLP == 0) {
             mintAmount =
-                (usdAmountAfterFee * DEFAULT_BLP_PRICE * (10 ** BLP_DECIMALS)) /
+                (usdAmountAfterFee * DEFAULT_NLP_PRICE * (10 ** NLP_DECIMALS)) /
                 (PRICE_PRECISION * BASIS_POINTS_DIVISOR);
         } else {
-            mintAmount = (usdAmountAfterFee * totalBLP) / totalUSD;
+            mintAmount = (usdAmountAfterFee * totalNLP) / totalUSD;
         }
 
-        require(totalBLP + mintAmount <= settingsManager.maxTotalBlp(), "max total blp exceeded");
+        require(totalNLP + mintAmount <= settingsManager.maxTotalNlp(), "max total nlp exceeded");
 
         _distributeFee(stakingFee, address(0), address(0));
 
         totalUSD += usdAmountAfterFee;
         lastStakedAt[_account] = block.timestamp;
-        IMintable(blp).mint(_account, mintAmount);
+        IMintable(nlp).mint(_account, mintAmount);
 
         emit Stake(_account, _token, _amount, mintAmount);
     }
@@ -226,12 +220,12 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         stake(msg.sender, address(USDC), USDC.balanceOf(msg.sender));
     }
 
-    // burn blp to unstake stablecoin
-    // blp cannot be unstaked or transferred within cooldown period, except whitelisted contracts
-    function unstake(address _tokenOut, uint256 _blpAmount) public nonReentrant preventBanners(msg.sender) {
+    // burn nlp to unstake stablecoin
+    // nlp cannot be unstaked or transferred within cooldown period, except whitelisted contracts
+    function unstake(address _tokenOut, uint256 _nlpAmount) public nonReentrant preventBanners(msg.sender) {
         require(settingsManager.isUnstakingEnabled(_tokenOut), "unstaking disabled");
-        uint256 totalBLP = IERC20Upgradeable(blp).totalSupply();
-        require(_blpAmount > 0 && _blpAmount <= totalBLP, "blpAmount error");
+        uint256 totalNLP = IERC20Upgradeable(nlp).totalSupply();
+        require(_nlpAmount > 0 && _nlpAmount <= totalNLP, "nlpAmount error");
         if (settingsManager.isWhitelistedFromCooldown(msg.sender) == false) {
             require(
                 lastStakedAt[msg.sender] + settingsManager.cooldownDuration() <= block.timestamp,
@@ -239,9 +233,9 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
             );
         }
 
-        IMintable(blp).burn(msg.sender, _blpAmount);
+        IMintable(nlp).burn(msg.sender, _nlpAmount);
 
-        uint256 usdAmount = (_blpAmount * totalUSD) / totalBLP;
+        uint256 usdAmount = (_nlpAmount * totalUSD) / totalNLP;
         uint256 unstakingFee = (usdAmount * settingsManager.unstakingFee(_tokenOut)) / BASIS_POINTS_DIVISOR;
 
         _distributeFee(unstakingFee, address(0), address(0));
@@ -250,15 +244,15 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         uint256 tokenAmountOut = priceManager.usdToToken(_tokenOut, usdAmount - unstakingFee);
         IERC20Upgradeable(_tokenOut).safeTransfer(msg.sender, tokenAmountOut);
 
-        emit Unstake(msg.sender, _tokenOut, _blpAmount, tokenAmountOut);
+        emit Unstake(msg.sender, _tokenOut, _nlpAmount, tokenAmountOut);
     }
 
-    function unstakeUSDC(uint256 _blpAmount) external {
-        unstake(address(USDC), _blpAmount);
+    function unstakeUSDC(uint256 _nlpAmount) external {
+        unstake(address(USDC), _nlpAmount);
     }
 
     function unstakeAllUSDC() external {
-        unstake(address(USDC), IERC20Upgradeable(blp).balanceOf(msg.sender));
+        unstake(address(USDC), IERC20Upgradeable(nlp).balanceOf(msg.sender));
     }
 
     // submit order to create a new position
@@ -469,7 +463,7 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
             if (_isIncrease) {
                 totalUSD += _delta;
             } else {
-                require(totalUSD >= _delta, "exceeded BLP bottom");
+                require(totalUSD >= _delta, "exceeded NLP bottom");
                 totalUSD -= _delta;
             }
         }
@@ -487,8 +481,8 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
                 referFee = (_fee * referFee) / BASIS_POINTS_DIVISOR;
                 traderRebate = (_fee * traderRebate) / BASIS_POINTS_DIVISOR;
 
-                IVUSD(vusd).mint(_refer, referFee);
-                if (traderRebate > 0) IVUSD(vusd).mint(_trader, traderRebate);
+                INUSD(nusd).mint(_refer, referFee);
+                if (traderRebate > 0) INUSD(nusd).mint(_trader, traderRebate);
 
                 _fee -= referFee + traderRebate;
                 emit ReferFeeTraderRebate(_refer, referFee, _trader, traderRebate);
@@ -500,25 +494,25 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
                 if (platformFee > 0) {
                     platformFee = (_fee * platformFee) / BASIS_POINTS_DIVISOR;
 
-                    IVUSD(vusd).mint(platform, platformFee);
+                    INUSD(nusd).mint(platform, platformFee);
 
                     _fee -= platformFee;
                     emit PlatformFeeTransfer(platform, platformFee, _trader);
                 }
             }
 
-            uint256 feeForBLP = (_fee * settingsManager.feeRewardBasisPoints()) / BASIS_POINTS_DIVISOR;
-            totalUSD += feeForBLP;
-            IVUSD(vusd).mint(settingsManager.feeManager(), _fee - feeForBLP);
+            uint256 feeForNLP = (_fee * settingsManager.feeRewardBasisPoints()) / BASIS_POINTS_DIVISOR;
+            totalUSD += feeForNLP;
+            INUSD(nusd).mint(settingsManager.feeManager(), _fee - feeForNLP);
         }
     }
 
-    function takeVUSDIn(address _account, uint256 _amount) external override onlyVault {
-        IVUSD(vusd).burn(_account, _amount);
+    function takeNUSDIn(address _account, uint256 _amount) external override onlyVault {
+        INUSD(nusd).burn(_account, _amount);
     }
 
-    function takeVUSDOut(address _account, uint256 _amount) external override onlyVault {
-        IVUSD(vusd).mint(_account, _amount);
+    function takeNUSDOut(address _account, uint256 _amount) external override onlyVault {
+        INUSD(nusd).mint(_account, _amount);
     }
 
     /* ========== OPERATOR FUNCTIONS ========== */
@@ -544,19 +538,19 @@ contract Vault is Constants, Initializable, ReentrancyGuardUpgradeable, IVault {
         require(pnl > int256(maxPnl), "not allowed");
         positionVault.decreasePosition(_posId, price, position.size);
         uint256 exceededPnl = uint256(pnl) - maxPnl;
-        IVUSD(vusd).burn(position.owner, exceededPnl); // cap user's pnl to maxPnl
+        INUSD(nusd).burn(position.owner, exceededPnl); // cap user's pnl to maxPnl
         totalUSD += exceededPnl; // send pnl back to vault
         emit ForceClose(_posId, position.owner, exceededPnl);
     }
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function getBLPPrice() external view returns (uint256) {
-        uint256 totalBLP = IERC20Upgradeable(blp).totalSupply();
-        if (totalBLP == 0) {
-            return DEFAULT_BLP_PRICE;
+    function getNLPPrice() external view returns (uint256) {
+        uint256 totalNLP = IERC20Upgradeable(nlp).totalSupply();
+        if (totalNLP == 0) {
+            return DEFAULT_NLP_PRICE;
         } else {
-            return (BASIS_POINTS_DIVISOR * (10 ** BLP_DECIMALS) * totalUSD) / (totalBLP * PRICE_PRECISION);
+            return (BASIS_POINTS_DIVISOR * (10 ** NLP_DECIMALS) * totalUSD) / (totalNLP * PRICE_PRECISION);
         }
     }
 

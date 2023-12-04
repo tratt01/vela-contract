@@ -166,10 +166,10 @@ contract ComplexRewarderPerSec is IComplexRewarder, Initializable, ReentrancyGua
         _massUpdatePools();
     }
 
-    /// @notice Function called by FarmDistributor whenever staker claims BSM harvest. Allows staker to also receive a 2nd reward token.
+    /// @notice Function called by FarmDistributor whenever staker claims NAV harvest. Allows staker to also receive a 2nd reward token.
     /// @param _user Address of user
     /// @param _amount Number of LP tokens the user has
-    function onBsmReward(uint256 _pid, address _user, uint256 _amount) external override onlyDistributor {
+    function onNavReward(uint256 _pid, address _user, uint256 _amount) external override onlyDistributor {
         PoolInfo memory pool = _updatePool(_pid);
         UserInfo storage user = userInfo[_pid][_user];
 

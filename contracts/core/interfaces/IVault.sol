@@ -7,13 +7,13 @@ interface IVault {
 
     function distributeFee(uint256 _fee, address _refer, address _trader) external;
 
-    function takeVUSDIn(address _account, uint256 _amount) external;
+    function takeNUSDIn(address _account, uint256 _amount) external;
 
-    function takeVUSDOut(address _account, uint256 _amount) external;
+    function takeNUSDOut(address _account, uint256 _amount) external;
 
     function lastStakedAt(address _account) external view returns (uint256);
 
     function getVaultUSDBalance() external view returns (uint256);
 
-    function getBLPPrice() external view returns (uint256);
+    function getNLPPrice() external view returns (uint256);
 }

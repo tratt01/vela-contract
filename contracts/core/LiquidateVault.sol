@@ -94,15 +94,15 @@ contract LiquidateVault is Constants, Initializable, ReentrancyGuardUpgradeable,
         (uint32 firstCallerPercent, uint32 resolverPercent) = settingsManager.bountyPercent();
         uint256 firstCallerBounty = (position.collateral * uint256(firstCallerPercent)) / BASIS_POINTS_DIVISOR;
         uint256 resolverBounty = (position.collateral * uint256(resolverPercent)) / BASIS_POINTS_DIVISOR;
-        uint256 blpBounty = position.collateral - firstCallerBounty - resolverBounty;
+        uint256 nlpBounty = position.collateral - firstCallerBounty - resolverBounty;
 
         if (liquidateRegistrant[_posId] == address(0)) {
-            vault.takeVUSDOut(msg.sender, firstCallerBounty);
+            vault.takeNUSDOut(msg.sender, firstCallerBounty);
         } else {
-            vault.takeVUSDOut(liquidateRegistrant[_posId], firstCallerBounty);
+            vault.takeNUSDOut(liquidateRegistrant[_posId], firstCallerBounty);
         }
-        vault.takeVUSDOut(msg.sender, resolverBounty);
-        vault.accountDeltaIntoTotalUSD(true, blpBounty);
+        vault.takeNUSDOut(msg.sender, resolverBounty);
+        vault.accountDeltaIntoTotalUSD(true, nlpBounty);
 
         settingsManager.updateFunding(position.tokenId);
         settingsManager.decreaseOpenInterest(position.tokenId, position.owner, position.isLong, position.size);

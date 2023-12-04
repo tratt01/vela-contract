@@ -10,7 +10,7 @@ import "./interfaces/ILiquidateVault.sol";
 import "./interfaces/IPositionVault.sol";
 import "./interfaces/IOperators.sol";
 import "../staking/interfaces/ITokenFarm.sol";
-import "../tokens/interfaces/IVUSD.sol";
+import "../tokens/interfaces/INUSD.sol";
 import {Constants} from "../access/Constants.sol";
 
 contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgradeable, Constants {
@@ -21,7 +21,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
     IPositionVault public positionVault;
     ITokenFarm public tokenFarm;
     IOperators public operators;
-    address public vusd;
+    address public nusd;
 
     /* ========== VAULT SETTINGS ========== */
     uint256 public override cooldownDuration;
@@ -37,7 +37,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
     event SetFeeManager(address indexed feeManager);
     event SetDefaultMaxProfitPercent(uint256 defaultMaxProfitPercent);
     event SetMaxProfitPercent(uint256 tokenId, uint256 maxProfitPercent);
-    event SetMaxTotalBlp(uint256 maxTotalBlp);
+    event SetMaxTotalNlp(uint256 maxTotalNlp);
 
     /* ========== VAULT SWITCH ========== */
     mapping(address => bool) public override isDeposit;
@@ -181,7 +181,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
     mapping(uint256 => mapping(bool => uint256)) public borrowFeeFactorPerAssetPerSide;
     mapping(uint256 => uint256) public tierRebates; // tier => rebate percent for trader
     mapping(address => uint256) public override platformFees; // address of 3rd platform to receive platform fee => fee percent
-    uint256 public override maxTotalBlp;
+    uint256 public override maxTotalNlp;
 
     mapping(uint256 => uint256) public override minProfitDurations; // tokenId => minProfitDuration
     mapping(uint256 => uint256) public override maxCloseProfits; // tokenId => maxCloseProfit
@@ -207,7 +207,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         address _liquidateVault,
         address _positionVault,
         address _operators,
-        address _vusd,
+        address _nusd,
         address _tokenFarm
     ) public initializer {
         __ReentrancyGuard_init();
@@ -215,7 +215,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         positionVault = IPositionVault(_positionVault);
         operators = IOperators(_operators);
         tokenFarm = ITokenFarm(_tokenFarm);
-        vusd = _vusd;
+        nusd = _nusd;
         priceMovementPercent = 50; // 0.05%
         defaultMaxProfitPercent = 10000; // 10%
         bountyPercent_ = BountyPercent({firstCaller: 20000, resolver: 50000}); // first caller 20%, resolver 50% and leftover to team
@@ -235,11 +235,11 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         maxFundingRate = FUNDING_RATE_PRECISION / 100; // 1% per hour
         maxTotalOpenInterest = 10000000000 * PRICE_PRECISION;
         unused = 10000; // 10%
-        maxTotalBlp = 20 * 10 ** 6 * 10 ** BLP_DECIMALS; // 20mil max blp supply
+        maxTotalNlp = 20 * 10 ** 6 * 10 ** NLP_DECIMALS; // 20mil max nlp supply
     }
 
     function initializeV2() public reinitializer(2) {
-        bountyPercent_ = BountyPercent({firstCaller: 2000, resolver: 8000}); // first caller 2%, resolver 8% and leftover 90% to blp
+        bountyPercent_ = BountyPercent({firstCaller: 2000, resolver: 8000}); // first caller 2%, resolver 8% and leftover 90% to nlp
     }
 
     function initializeV3() public reinitializer(3) {
@@ -286,10 +286,10 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         emit SetMaxProfitPercent(_tokenId, _maxProfitPercent);
     }
 
-    function setMaxTotalBlp(uint256 _maxTotalBlp) external onlyOperator(3) {
-        require(_maxTotalBlp > 0, "invalid maxTotalBlp");
-        maxTotalBlp = _maxTotalBlp;
-        emit SetMaxTotalBlp(_maxTotalBlp);
+    function setMaxTotalNlp(uint256 _maxTotalNlp) external onlyOperator(3) {
+        require(_maxTotalNlp > 0, "invalid maxTotalNlp");
+        maxTotalNlp = _maxTotalNlp;
+        emit SetMaxTotalNlp(_maxTotalNlp);
     }
 
     /* ========== VAULT SWITCH ========== */
@@ -364,7 +364,7 @@ contract SettingsManager is ISettingsManager, Initializable, ReentrancyGuardUpgr
         return
         (getUndiscountedTradingFee(_tokenId, _isLong, _sizeDelta) *
         (BASIS_POINTS_DIVISOR - deductFeePercent[_account]) *
-        tokenFarm.getTierBsm(_account)) / BASIS_POINTS_DIVISOR ** 2;
+        tokenFarm.getTierNav(_account)) / BASIS_POINTS_DIVISOR ** 2;
     }
 
     function getUndiscountedTradingFee(

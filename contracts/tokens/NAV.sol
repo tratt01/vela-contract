@@ -1,4 +1,6 @@
-// SPDX-License-Identifier: MIT
+/**
+ *Submitted for verification at Arbiscan.io on 2022-12-24
+*/
 
 // File: @openzeppelin/contracts/utils/introspection/IERC165.sol
 
@@ -1459,7 +1461,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     ) internal virtual {}
 }
 
-// File: contracts/BsmToken.sol
+// File: contracts/NavToken.sol
 
 
 pragma solidity ^0.8.9;
@@ -1467,13 +1469,13 @@ pragma solidity ^0.8.9;
 
 
 
-contract BsmToken is ERC20, Pausable, AccessControl {
+contract NavToken is ERC20, Pausable, AccessControl {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     uint256 private _maxSupply = 100000000 * 10**decimals(); // 100M tokens is maximum supply
 
-    constructor() ERC20("BsmToken", "BSM") {
+    constructor() ERC20("NavToken", "NAV") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);

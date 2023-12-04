@@ -3,9 +3,9 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/IVUSD.sol";
+import "./interfaces/INUSD.sol";
 
-contract VUSD is IVUSD, Ownable {
+contract NUSD is INUSD, Ownable {
     uint8 public constant decimals = 30;
 
     string public name;
@@ -39,16 +39,16 @@ contract VUSD is IVUSD, Ownable {
     }
 
     function _burn(address _account, uint256 _amount) internal {
-        require(_account != address(0), "VUSD: burn from the zero address");
+        require(_account != address(0), "NUSD: burn from the zero address");
 
-        require(balances[_account] >= _amount, "VUSD: burn amount exceeds balance");
+        require(balances[_account] >= _amount, "NUSD: burn amount exceeds balance");
         balances[_account] -= _amount;
         totalSupply -= _amount;
         emit Burn(_account, _amount);
     }
 
     function _mint(address _account, uint256 _amount) internal {
-        require(_account != address(0), "VUSD: mint to the zero address");
+        require(_account != address(0), "NUSD: mint to the zero address");
         totalSupply += _amount;
         balances[_account] += _amount;
         emit Mint(_account, _amount);

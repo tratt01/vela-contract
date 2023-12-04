@@ -22,9 +22,9 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         uint256 startTimestamp;
     }
 
-    struct BsmUserInfo {
-        uint256 bsmAmount;
-        uint256 esbsmAmount;
+    struct NavUserInfo {
+        uint256 navAmount;
+        uint256 esnavAmount;
         uint256 startTimestamp;
     }
 
@@ -38,9 +38,9 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     uint256 public totalLockedUpRewards;
     // The precision factor
     uint256 private ACC_TOKEN_PRECISION;
-    IBoringERC20 public esBSM;
-    IBoringERC20 public BSM;
-    IBoringERC20 public BLP;
+    IBoringERC20 public esNAV;
+    IBoringERC20 public NAV;
+    IBoringERC20 public NLP;
     IOperators public operators;
     EnumerableSetUpgradeable.AddressSet private cooldownWhiteList;
     uint256 public cooldownDuration;
@@ -49,15 +49,15 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     uint256[] public tierLevels;
     uint256[] public tierPercents;
     // Info of each pool
-    PoolInfo public bsmPoolInfo;
-    PoolInfo public blpPoolInfo;
+    PoolInfo public navPoolInfo;
+    PoolInfo public nlpPoolInfo;
     //PoolInfo[] public poolInfo;
     // Info of each user that stakes LP tokens.
     mapping(address => uint256) public claimedAmounts;
     mapping(address => uint256) public unlockedVestingAmounts;
     mapping(address => uint256) public lastVestingUpdateTimes;
-    mapping(address => BsmUserInfo) public bsmUserInfo;
-    mapping(address => UserInfo) public blpUserInfo;
+    mapping(address => NavUserInfo) public navUserInfo;
+    mapping(address => UserInfo) public nlpUserInfo;
     mapping(address => uint256) public lockedVestingAmounts;
 
     event FarmDeposit(address indexed user, IBoringERC20 indexed token, uint256 amount);
@@ -82,18 +82,18 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     function initialize(
         uint256 _vestingDuration,
-        IBoringERC20 _esBSM,
-        IBoringERC20 _BSM,
-        IBoringERC20 _blp,
+        IBoringERC20 _esNAV,
+        IBoringERC20 _NAV,
+        IBoringERC20 _nlp,
         address _operators
     ) public initializer {
         __ReentrancyGuard_init();
         //StartBlock always many years later from contract const ruct, will be set later in StartFarming function
         require(AddressUpgradeable.isContract(_operators), "operators invalid");
         operators = IOperators(_operators);
-        BSM = _BSM;
-        esBSM = _esBSM;
-        BLP = _blp;
+        NAV = _NAV;
+        esNAV = _esNAV;
+        NLP = _nlp;
         ACC_TOKEN_PRECISION = 1e12;
         cooldownDuration = 1 weeks;
         vestingDuration = _vestingDuration;
@@ -117,30 +117,30 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     // ----- START: Operator Logic -----
     // Update rewarders and enableCooldown for pools
-    function setBsmPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
+    function setNavPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
         require(_rewarders.length <= 10, "set: too many rewarders");
 
         for (uint256 rewarderId = 0; rewarderId < _rewarders.length; ++rewarderId) {
             require(AddressUpgradeable.isContract(address(_rewarders[rewarderId])), "set: rewarder must be contract");
         }
 
-        bsmPoolInfo.rewarders = _rewarders;
-        bsmPoolInfo.enableCooldown = _enableCooldown;
+        navPoolInfo.rewarders = _rewarders;
+        navPoolInfo.enableCooldown = _enableCooldown;
 
-        emit Set(BSM, _rewarders);
+        emit Set(NAV, _rewarders);
     }
 
-    function setBlpPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
+    function setNlpPool(IComplexRewarder[] calldata _rewarders, bool _enableCooldown) external onlyOperator(1) {
         require(_rewarders.length <= 10, "set: too many rewarders");
 
         for (uint256 rewarderId = 0; rewarderId < _rewarders.length; ++rewarderId) {
             require(AddressUpgradeable.isContract(address(_rewarders[rewarderId])), "set: rewarder must be contract");
         }
 
-        blpPoolInfo.rewarders = _rewarders;
-        blpPoolInfo.enableCooldown = _enableCooldown;
+        nlpPoolInfo.rewarders = _rewarders;
+        nlpPoolInfo.enableCooldown = _enableCooldown;
 
-        emit Set(BLP, _rewarders);
+        emit Set(NLP, _rewarders);
     }
 
     function updateCooldownDuration(uint256 _newCooldownDuration) external onlyOperator(1) {
@@ -173,7 +173,7 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     // ----- END: Operator Logic -----
 
-    // ----- START: Vesting esBSM -> BSM -----
+    // ----- START: Vesting esNAV -> NAV -----
 
     function claim() external nonReentrant {
         address account = msg.sender;
@@ -213,7 +213,7 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         uint256 totalLocked = lockedVestingAmounts[account];
         require(totalLocked > 0, "Vester: vested amount is zero");
 
-        esBSM.safeTransfer(_receiver, totalLocked - totalClaimed);
+        esNAV.safeTransfer(_receiver, totalLocked - totalClaimed);
         _decreaseLockedVestingAmount(account, totalLocked);
 
         delete claimedAmounts[account];
@@ -225,8 +225,8 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     function _claim(address _account, address _receiver) internal returns (uint256) {
         uint256 amount = claimable(_account);
         claimedAmounts[_account] = claimedAmounts[_account] + amount;
-        IMintable(address(esBSM)).burn(address(this), amount);
-        BSM.safeTransfer(_receiver, amount);
+        IMintable(address(esNAV)).burn(address(this), amount);
+        NAV.safeTransfer(_receiver, amount);
         emit VestingClaim(_account, amount);
         return amount;
     }
@@ -235,10 +235,10 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         _depositVesting(msg.sender, _amount);
     }
 
-    function depositBsmForVesting(uint256 _amount) external nonReentrant {
+    function depositNavForVesting(uint256 _amount) external nonReentrant {
         require(_amount > 0, "zero amount");
-        BSM.safeTransferFrom(msg.sender, address(this), _amount); //transfer BSM in
-        esBSM.mint(msg.sender, _amount);
+        NAV.safeTransferFrom(msg.sender, address(this), _amount); //transfer NAV in
+        esNAV.mint(msg.sender, _amount);
         emit MintVestingToken(msg.sender, _amount);
     }
 
@@ -261,18 +261,18 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
         lastVestingUpdateTimes[_account] = block.timestamp;
 
-        esBSM.safeTransferFrom(_account, address(this), _amount);
+        esNAV.safeTransferFrom(_account, address(this), _amount);
 
         emit VestingDeposit(_account, _amount);
     }
 
-    function getStakedBsm(address _account) external view returns (uint256, uint256) {
-        BsmUserInfo memory user = bsmUserInfo[_account];
-        return (user.bsmAmount, user.esbsmAmount);
+    function getStakedNav(address _account) external view returns (uint256, uint256) {
+        NavUserInfo memory user = navUserInfo[_account];
+        return (user.navAmount, user.esnavAmount);
     }
 
-    function getStakedBLP(address _account) external view returns (uint256, uint256) {
-        UserInfo memory user = blpUserInfo[_account];
+    function getStakedNLP(address _account) external view returns (uint256, uint256) {
+        UserInfo memory user = nlpUserInfo[_account];
         return (user.amount, user.startTimestamp);
     }
 
@@ -280,181 +280,181 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         return lockedVestingAmounts[_account];
     }
 
-    // ----- END: Vesting esBSM -> BSM -----
+    // ----- END: Vesting esNAV -> NAV -----
 
-    // ----- START: BSM Pool, pid=0, token BSM -----
-    function depositBsm(uint256 _amount) external nonReentrant {
-        _depositBsm(_amount);
+    // ----- START: NAV Pool, pid=0, token NAV -----
+    function depositNav(uint256 _amount) external nonReentrant {
+        _depositNav(_amount);
     }
 
-    function _depositBsm(uint256 _amount) internal {
+    function _depositNav(uint256 _amount) internal {
         uint256 _pid = 0;
-        PoolInfo storage pool = bsmPoolInfo;
-        BsmUserInfo storage user = bsmUserInfo[msg.sender];
+        PoolInfo storage pool = navPoolInfo;
+        NavUserInfo storage user = navUserInfo[msg.sender];
 
         if (_amount > 0) {
-            BSM.safeTransferFrom(msg.sender, address(this), _amount);
-            user.bsmAmount += _amount;
+            NAV.safeTransferFrom(msg.sender, address(this), _amount);
+            user.navAmount += _amount;
             user.startTimestamp = block.timestamp;
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
+            pool.rewarders[rewarderId].onNavReward(_pid, msg.sender, user.navAmount + user.esnavAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp += _amount;
         }
-        emit FarmDeposit(msg.sender, BSM, _amount);
+        emit FarmDeposit(msg.sender, NAV, _amount);
     }
 
     //withdraw tokens
-    function withdrawBsm(uint256 _amount) external nonReentrant {
+    function withdrawNav(uint256 _amount) external nonReentrant {
         uint256 _pid = 0;
-        PoolInfo storage pool = bsmPoolInfo;
-        BsmUserInfo storage user = bsmUserInfo[msg.sender];
+        PoolInfo storage pool = navPoolInfo;
+        NavUserInfo storage user = navUserInfo[msg.sender];
 
         //this will make sure that user can only withdraw from his pool
-        require(user.bsmAmount >= _amount, "withdraw: user amount not enough");
+        require(user.navAmount >= _amount, "withdraw: user amount not enough");
 
         if (_amount > 0) {
             require(
                 !pool.enableCooldown || user.startTimestamp + cooldownDuration < block.timestamp,
                 "didn't pass cooldownDuration"
             );
-            user.bsmAmount -= _amount;
-            BSM.safeTransfer(msg.sender, _amount);
+            user.navAmount -= _amount;
+            NAV.safeTransfer(msg.sender, _amount);
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
+            pool.rewarders[rewarderId].onNavReward(_pid, msg.sender, user.navAmount + user.esnavAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp -= _amount;
         }
 
-        emit FarmWithdraw(msg.sender, BSM, _amount);
+        emit FarmWithdraw(msg.sender, NAV, _amount);
     }
 
-    // ----- END: BSM Pool, pid=0, token BSM -----
+    // ----- END: NAV Pool, pid=0, token NAV -----
 
-    // ----- START: BSM Pool, pid=0, token esBSM -----
-    function depositEsbsm(uint256 _amount) external nonReentrant {
-        _depositEsbsm(_amount);
+    // ----- START: NAV Pool, pid=0, token esNAV -----
+    function depositEsnav(uint256 _amount) external nonReentrant {
+        _depositEsnav(_amount);
     }
 
-    function _depositEsbsm(uint256 _amount) internal {
+    function _depositEsnav(uint256 _amount) internal {
         uint256 _pid = 0;
-        PoolInfo storage pool = bsmPoolInfo;
-        BsmUserInfo storage user = bsmUserInfo[msg.sender];
+        PoolInfo storage pool = navPoolInfo;
+        NavUserInfo storage user = navUserInfo[msg.sender];
 
         if (_amount > 0) {
-            esBSM.safeTransferFrom(msg.sender, address(this), _amount);
-            user.esbsmAmount += _amount;
+            esNAV.safeTransferFrom(msg.sender, address(this), _amount);
+            user.esnavAmount += _amount;
             user.startTimestamp = block.timestamp;
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
+            pool.rewarders[rewarderId].onNavReward(_pid, msg.sender, user.navAmount + user.esnavAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp += _amount;
         }
-        emit FarmDeposit(msg.sender, esBSM, _amount);
+        emit FarmDeposit(msg.sender, esNAV, _amount);
     }
 
     //withdraw tokens
-    function withdrawEsbsm(uint256 _amount) external nonReentrant {
+    function withdrawEsnav(uint256 _amount) external nonReentrant {
         uint256 _pid = 0;
-        PoolInfo storage pool = bsmPoolInfo;
-        BsmUserInfo storage user = bsmUserInfo[msg.sender];
+        PoolInfo storage pool = navPoolInfo;
+        NavUserInfo storage user = navUserInfo[msg.sender];
 
         //this will make sure that user can only withdraw from his pool
-        require(user.esbsmAmount >= _amount, "withdraw: user amount not enough");
+        require(user.esnavAmount >= _amount, "withdraw: user amount not enough");
 
         if (_amount > 0) {
             require(
                 !pool.enableCooldown || user.startTimestamp + cooldownDuration < block.timestamp,
                 "didn't pass cooldownDuration"
             );
-            user.esbsmAmount -= _amount;
-            esBSM.safeTransfer(msg.sender, _amount);
+            user.esnavAmount -= _amount;
+            esNAV.safeTransfer(msg.sender, _amount);
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.bsmAmount + user.esbsmAmount);
+            pool.rewarders[rewarderId].onNavReward(_pid, msg.sender, user.navAmount + user.esnavAmount);
         }
 
         if (_amount > 0) {
             pool.totalLp -= _amount;
         }
 
-        emit FarmWithdraw(msg.sender, esBSM, _amount);
+        emit FarmWithdraw(msg.sender, esNAV, _amount);
     }
 
-    // ----- END: BSM Pool, pid=0, token esBSM -----
+    // ----- END: NAV Pool, pid=0, token esNAV -----
 
-    // ----- START: both BSM and esBSM, pid=0
+    // ----- START: both NAV and esNAV, pid=0
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    // token BSM and esBSM
-    function emergencyWithdrawBsm() external nonReentrant {
-        PoolInfo storage pool = bsmPoolInfo;
-        BsmUserInfo storage user = bsmUserInfo[msg.sender];
-        uint256 _bsmAmount = user.bsmAmount;
-        uint256 _esBsmAmount = user.esbsmAmount;
-        if (_esBsmAmount > 0 || _bsmAmount > 0) {
+    // token NAV and esNAV
+    function emergencyWithdrawNav() external nonReentrant {
+        PoolInfo storage pool = navPoolInfo;
+        NavUserInfo storage user = navUserInfo[msg.sender];
+        uint256 _navAmount = user.navAmount;
+        uint256 _esNavAmount = user.esnavAmount;
+        if (_esNavAmount > 0 || _navAmount > 0) {
             require(
                 !pool.enableCooldown || user.startTimestamp + cooldownDuration <= block.timestamp,
                 "didn't pass cooldownDuration"
             );
         }
-        if (_bsmAmount > 0) {
-            BSM.safeTransfer(msg.sender, _bsmAmount);
-            pool.totalLp -= _bsmAmount;
-            user.bsmAmount = 0;
-            emit EmergencyWithdraw(msg.sender, BSM, _bsmAmount);
+        if (_navAmount > 0) {
+            NAV.safeTransfer(msg.sender, _navAmount);
+            pool.totalLp -= _navAmount;
+            user.navAmount = 0;
+            emit EmergencyWithdraw(msg.sender, NAV, _navAmount);
         }
-        if (_esBsmAmount > 0) {
-            esBSM.safeTransfer(msg.sender, _esBsmAmount);
-            pool.totalLp -= _esBsmAmount;
-            user.esbsmAmount = 0;
-            emit EmergencyWithdraw(msg.sender, esBSM, _esBsmAmount);
+        if (_esNavAmount > 0) {
+            esNAV.safeTransfer(msg.sender, _esNavAmount);
+            pool.totalLp -= _esNavAmount;
+            user.esnavAmount = 0;
+            emit EmergencyWithdraw(msg.sender, esNAV, _esNavAmount);
         }
     }
 
-    // ----- END: both BSM and esBSM, pid=0
+    // ----- END: both NAV and esNAV, pid=0
 
-    // ----- START: BLP Pool, pid=1, token BLP -----
+    // ----- START: NLP Pool, pid=1, token NLP -----
 
-    function depositBlp(uint256 _amount) external {
-        _depositBlp(_amount);
+    function depositNlp(uint256 _amount) external {
+        _depositNlp(_amount);
     }
 
-    function _depositBlp(uint256 _amount) internal {
+    function _depositNlp(uint256 _amount) internal {
         uint256 _pid = 1;
-        PoolInfo storage pool = blpPoolInfo;
-        UserInfo storage user = blpUserInfo[msg.sender];
+        PoolInfo storage pool = nlpPoolInfo;
+        UserInfo storage user = nlpUserInfo[msg.sender];
         if (_amount > 0) {
-            BLP.safeTransferFrom(msg.sender, address(this), _amount);
+            NLP.safeTransferFrom(msg.sender, address(this), _amount);
             user.amount += _amount;
             user.startTimestamp = block.timestamp;
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.amount);
+            pool.rewarders[rewarderId].onNavReward(_pid, msg.sender, user.amount);
         }
 
         if (_amount > 0) {
             pool.totalLp += _amount;
         }
-        emit FarmDeposit(msg.sender, BLP, _amount);
+        emit FarmDeposit(msg.sender, NLP, _amount);
     }
 
-    function emergencyWithdrawBlp() external {
-        PoolInfo storage pool = blpPoolInfo;
-        UserInfo storage user = blpUserInfo[msg.sender];
+    function emergencyWithdrawNlp() external {
+        PoolInfo storage pool = nlpPoolInfo;
+        UserInfo storage user = nlpUserInfo[msg.sender];
         uint256 _amount = user.amount;
         if (_amount > 0) {
             if (!checkCooldownWhiteList(msg.sender)) {
@@ -463,18 +463,18 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
                     "didn't pass cooldownDuration"
                 );
             }
-            BLP.safeTransfer(msg.sender, _amount);
+            NLP.safeTransfer(msg.sender, _amount);
             pool.totalLp -= _amount;
         }
         user.amount = 0;
-        emit EmergencyWithdraw(msg.sender, BLP, _amount);
+        emit EmergencyWithdraw(msg.sender, NLP, _amount);
     }
 
     //withdraw tokens
-    function withdrawBlp(uint256 _amount) external nonReentrant {
+    function withdrawNlp(uint256 _amount) external nonReentrant {
         uint256 _pid = 1;
-        PoolInfo storage pool = blpPoolInfo;
-        UserInfo storage user = blpUserInfo[msg.sender];
+        PoolInfo storage pool = nlpPoolInfo;
+        UserInfo storage user = nlpUserInfo[msg.sender];
 
         //this will make sure that user can only withdraw from his pool
         require(user.amount >= _amount, "withdraw: user amount not enough");
@@ -487,29 +487,29 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
                 );
             }
             user.amount -= _amount;
-            BLP.safeTransfer(msg.sender, _amount);
+            NLP.safeTransfer(msg.sender, _amount);
         }
 
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
-            pool.rewarders[rewarderId].onBsmReward(_pid, msg.sender, user.amount);
+            pool.rewarders[rewarderId].onNavReward(_pid, msg.sender, user.amount);
         }
 
         if (_amount > 0) {
             pool.totalLp -= _amount;
         }
 
-        emit FarmWithdraw(msg.sender, BLP, _amount);
+        emit FarmWithdraw(msg.sender, NLP, _amount);
     }
 
-    // ----- END: BLP Pool, pid=1, token BLP -----
+    // ----- END: NLP Pool, pid=1, token NLP -----
 
     // View function to see rewarders for a pool
-    function poolRewarders(bool _isBsmPool) external view returns (address[] memory rewarders) {
+    function poolRewarders(bool _isNavPool) external view returns (address[] memory rewarders) {
         PoolInfo storage pool;
-        if (_isBsmPool) {
-            pool = bsmPoolInfo;
+        if (_isNavPool) {
+            pool = navPoolInfo;
         } else {
-            pool = blpPoolInfo;
+            pool = nlpPoolInfo;
         }
         rewarders = new address[](pool.rewarders.length);
         for (uint256 rewarderId = 0; rewarderId < pool.rewarders.length; ++rewarderId) {
@@ -519,7 +519,7 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
 
     /// @notice View function to see pool rewards per sec
     function poolRewardsPerSec(
-        bool _isBsmPool
+        bool _isNavPool
     )
     external
     view
@@ -532,12 +532,12 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     {
         uint256 _pid;
         PoolInfo storage pool;
-        if (_isBsmPool) {
+        if (_isNavPool) {
             _pid = 0;
-            pool = bsmPoolInfo;
+            pool = navPoolInfo;
         } else {
             _pid = 1;
-            pool = blpPoolInfo;
+            pool = nlpPoolInfo;
         }
 
         addresses = new address[](pool.rewarders.length);
@@ -559,16 +559,16 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     function poolTotalLp(uint256 _pid) external view returns (uint256) {
         PoolInfo storage pool;
         if (_pid == 0) {
-            pool = bsmPoolInfo;
+            pool = navPoolInfo;
         } else {
-            pool = blpPoolInfo;
+            pool = nlpPoolInfo;
         }
         return pool.totalLp;
     }
 
     // View function to see pending rewards on frontend.
     function pendingTokens(
-        bool _isBsmPool,
+        bool _isNavPool,
         address _user
     )
     external
@@ -582,12 +582,12 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     {
         uint256 _pid;
         PoolInfo storage pool;
-        if (_isBsmPool) {
+        if (_isNavPool) {
             _pid = 0;
-            pool = bsmPoolInfo;
+            pool = navPoolInfo;
         } else {
             _pid = 1;
-            pool = blpPoolInfo;
+            pool = nlpPoolInfo;
         }
         addresses = new address[](pool.rewarders.length);
         symbols = new string[](pool.rewarders.length);
@@ -605,15 +605,15 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
     }
 
     // Function to harvest many pools in a single transaction
-    function harvestMany(bool _bsm, bool _esbsm, bool _blp, bool _vesting) public nonReentrant {
-        if (_bsm) {
-            _depositBsm(0);
+    function harvestMany(bool _nav, bool _esnav, bool _nlp, bool _vesting) public nonReentrant {
+        if (_nav) {
+            _depositNav(0);
         }
-        if (_esbsm) {
-            _depositEsbsm(0);
+        if (_esnav) {
+            _depositEsnav(0);
         }
-        if (_blp) {
-            _depositBlp(0);
+        if (_nlp) {
+            _depositNlp(0);
         }
         if (_vesting) {
             _claim(msg.sender, msg.sender);
@@ -631,9 +631,9 @@ contract TokenFarm is ITokenFarm, Constants, Initializable, ReentrancyGuardUpgra
         harvestMany(x & (2 ** 3) > 0, x & (2 ** 2) > 0, x & 2 > 0, x & 1 > 0);
     }
 
-    function getTierBsm(address _account) external view override returns (uint256) {
-        BsmUserInfo storage user = bsmUserInfo[_account];
-        uint256 amount = user.bsmAmount + user.esbsmAmount;
+    function getTierNav(address _account) external view override returns (uint256) {
+        NavUserInfo storage user = navUserInfo[_account];
+        uint256 amount = user.navAmount + user.esnavAmount;
         if (tierLevels.length == 0 || amount < tierLevels[0]) {
             return BASIS_POINTS_DIVISOR;
         }

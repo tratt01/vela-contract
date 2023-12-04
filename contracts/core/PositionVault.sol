@@ -162,7 +162,7 @@ contract PositionVault is Constants, Initializable, ReentrancyGuardUpgradeable, 
 
         uint256 fee = settingsManager.getTradingFee(_account, _tokenId, _isLong, _params[3]);
         paidFees[_lastPosId].paidPositionFee = fee;
-        vault.takeVUSDIn(_account, _params[2] + fee);
+        vault.takeNUSDIn(_account, _params[2] + fee);
 
         if (_orderType == OrderType.MARKET) {
             require(
@@ -204,7 +204,7 @@ contract PositionVault is Constants, Initializable, ReentrancyGuardUpgradeable, 
         if (isPlus) {
             position.collateral += _amount;
             validateMinLeverage(position.size, position.collateral);
-            vault.takeVUSDIn(_account, _amount);
+            vault.takeNUSDIn(_account, _amount);
             emit AddOrRemoveCollateral(_posId, isPlus, _amount, position.collateral, position.size);
         } else {
             require(removeCollateralOrders[_posId] == 0, "order already exists");
@@ -232,7 +232,7 @@ contract PositionVault is Constants, Initializable, ReentrancyGuardUpgradeable, 
         validateIncreasePosition(position.tokenId, _collateralDelta, _sizeDelta);
 
         uint256 fee = settingsManager.getTradingFee(_account, position.tokenId, position.isLong, _sizeDelta);
-        vault.takeVUSDIn(_account, _collateralDelta + fee);
+        vault.takeNUSDIn(_account, _collateralDelta + fee);
         orderVault.createAddPositionOrder(_account, _posId, _collateralDelta, _sizeDelta, _allowedPrice, fee);
 
         queuePosIds.push(2 ** 128 + _posId);
@@ -289,7 +289,7 @@ contract PositionVault is Constants, Initializable, ReentrancyGuardUpgradeable, 
         validateMaxLeverage(position.tokenId, position.size, position.collateral);
         (bool isPositionLiquidatable, , , ) = liquidateVault.validateLiquidationWithPosid(_posId);
         require(!isPositionLiquidatable, "position will be liquidated");
-        vault.takeVUSDOut(position.owner, removeCollateralAmount);
+        vault.takeNUSDOut(position.owner, removeCollateralAmount);
 
         delete removeCollateralOrders[_posId];
 
@@ -551,7 +551,7 @@ contract PositionVault is Constants, Initializable, ReentrancyGuardUpgradeable, 
         uint256 collateralDelta = (position.collateral * _sizeDelta) / position.size;
 
         int256 usdOut = int256(collateralDelta) + pnl - int256(fee);
-        if (usdOut > 0) vault.takeVUSDOut(position.owner, uint256(usdOut));
+        if (usdOut > 0) vault.takeNUSDOut(position.owner, uint256(usdOut));
 
         if (pnl >= 0) {
             if (block.timestamp - position.lastIncreasedTime < settingsManager.minProfitDurations(position.tokenId)) {
@@ -585,13 +585,13 @@ contract PositionVault is Constants, Initializable, ReentrancyGuardUpgradeable, 
                     (BASIS_POINTS_DIVISOR - settingsManager.feeRewardBasisPoints())) / BASIS_POINTS_DIVISOR;
                 // take out accounted fees from vault and send to feeManager
                 vault.accountDeltaIntoTotalUSD(false, totalFeesForFeeManager);
-                vault.takeVUSDOut(settingsManager.feeManager(), totalFeesForFeeManager);
+                vault.takeNUSDOut(settingsManager.feeManager(), totalFeesForFeeManager);
             } else {
                 uint256 totalFeesForFeeManager = (uint256(-1 * totalFees) *
                     (BASIS_POINTS_DIVISOR - settingsManager.feeRewardBasisPoints())) / BASIS_POINTS_DIVISOR;
                 // take out fees from feeManager and send to vault
                 vault.accountDeltaIntoTotalUSD(true, totalFeesForFeeManager);
-                vault.takeVUSDIn(settingsManager.feeManager(), totalFeesForFeeManager);
+                vault.takeNUSDIn(settingsManager.feeManager(), totalFeesForFeeManager);
             }
         }
 

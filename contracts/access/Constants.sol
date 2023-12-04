@@ -6,7 +6,7 @@ contract Constants {
     uint8 internal constant STAKING_PID_FOR_CHARGE_FEE = 1;
     uint256 internal constant BASIS_POINTS_DIVISOR = 100000;
     uint256 internal constant LIQUIDATE_THRESHOLD_DIVISOR = 10 * BASIS_POINTS_DIVISOR;
-    uint256 internal constant DEFAULT_BLP_PRICE = 100000;
+    uint256 internal constant DEFAULT_NLP_PRICE = 100000;
     uint256 internal constant FUNDING_RATE_PRECISION = BASIS_POINTS_DIVISOR ** 3; // 1e15
     uint256 internal constant MAX_DEPOSIT_WITHDRAW_FEE = 10000; // 10%
     uint256 internal constant MAX_DELTA_TIME = 24 hours;
@@ -31,7 +31,7 @@ contract Constants {
     uint256 internal constant PRICE_PRECISION = 10 ** 30;
     uint256 internal constant TRAILING_STOP_TYPE_AMOUNT = 0;
     uint256 internal constant TRAILING_STOP_TYPE_PERCENT = 1;
-    uint256 internal constant BLP_DECIMALS = 18;
+    uint256 internal constant NLP_DECIMALS = 18;
 
     function uintToBytes(uint v) internal pure returns (bytes32 ret) {
         if (v == 0) {

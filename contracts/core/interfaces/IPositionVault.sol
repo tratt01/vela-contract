@@ -51,9 +51,6 @@ interface IPositionVault {
     function removeUserOpenOrder(address _user, uint256 _posId) external;
 
     function lastPosId() external view returns (uint256);
-    function queueIndex() external view returns (uint256);
-    function getNumOfUnexecuted() external view returns (uint256);
-    function queuePosIds(uint256 _id) external view returns (uint256);
 
     function getPosition(uint256 _posId) external view returns (Position memory);
 

@@ -164,7 +164,7 @@ interface ISettingsManager {
 
     function maxFundingRate() external view returns (uint256);
 
-    function maxTotalBlp() external view returns (uint256);
+    function maxTotalNlp() external view returns (uint256);
 
     function minProfitDurations(uint256 tokenId) external view returns (uint256);
 

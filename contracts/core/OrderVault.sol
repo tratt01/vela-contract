@@ -134,7 +134,7 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
             order.status = OrderStatus.CANCELED;
 
             Position memory position = positionVault.getPosition(_posId);
-            vault.takeVUSDOut(position.owner, order.collateral + positionVault.getPaidFees(_posId).paidPositionFee);
+            vault.takeNUSDOut(position.owner, order.collateral + positionVault.getPaidFees(_posId).paidPositionFee);
 
             emit FinishOrder(_posId, order.positionType, order.status);
         }
@@ -151,7 +151,7 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
             order.positionType = POSITION_MARKET;
         } else {
             order.status = OrderStatus.CANCELED;
-            vault.takeVUSDOut(position.owner, order.collateral + positionVault.getPaidFees(_posId).paidPositionFee);
+            vault.takeNUSDOut(position.owner, order.collateral + positionVault.getPaidFees(_posId).paidPositionFee);
         }
         order.collateral = 0;
         order.size = 0;
@@ -215,7 +215,7 @@ contract OrderVault is Constants, Initializable, ReentrancyGuardUpgradeable, IOr
         AddPositionOrder memory addPositionOrder = addPositionOrders[_posId];
 
         if (addPositionOrder.size > 0) {
-            vault.takeVUSDOut(addPositionOrder.owner, addPositionOrder.collateral + addPositionOrder.fee);
+            vault.takeNUSDOut(addPositionOrder.owner, addPositionOrder.collateral + addPositionOrder.fee);
             delete addPositionOrders[_posId];
         }
     }

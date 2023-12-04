@@ -6,11 +6,11 @@ import "./MintableBaseToken.sol";
 import "../core/interfaces/IVault.sol";
 import "../core/interfaces/ISettingsManager.sol";
 
-contract BLP is MintableBaseToken {
+contract NLP is MintableBaseToken {
     IVault public vault;
     ISettingsManager public settingsManager;
 
-    constructor() MintableBaseToken("Bsm LP", "BLP", 0) {}
+    constructor() MintableBaseToken("Nav LP", "NLP", 0) {}
 
     function initialize(address _vault, address _settingsManager) external onlyOwner {
         vault = IVault(_vault);
@@ -18,7 +18,7 @@ contract BLP is MintableBaseToken {
     }
 
     function id() external pure returns (string memory _name) {
-        return "BLP";
+        return "NLP";
     }
 
     function transfer(address _recipient, uint256 _amount) public override returns (bool) {
